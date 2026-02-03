@@ -1,0 +1,10 @@
+format:
+	black .
+	ruff format .
+
+lint:
+	ruff check .
+	mypy app
+	bandit -r app
+
+check: format lint
