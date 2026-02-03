@@ -56,8 +56,8 @@ app/
 
 1. **Clonar el repositorio**:
    ```bash
-   git clone <url-del-repositorio>
-   cd pedilo-backend
+   git clone https://github.com/thiagostilo2121/pedilo-backapi.git
+   cd pedilo-backapi
    ```
 
 2. **Crear y activar entorno virtual**:
