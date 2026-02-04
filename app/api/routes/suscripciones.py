@@ -62,14 +62,11 @@ async def webhook_mp(request: Request, session: Session = Depends(get_session)):
     if not mp_id:
         return {"status": "ignored"}
 
-    # Solo nos importa suscripciones
     if topic not in ["subscription_preapproval", "subscription_authorized_payment"]:
         return {"status": "ignored"}
 
-    # Obtener info real desde MP
     suscripcion_mp = obtener_suscripcion_mp(mp_id)
 
-    # Buscar en DB
     suscripcion = session.exec(
         select(Subscription).where(Subscription.mp_subscription_id == mp_id)
     ).first()
@@ -77,7 +74,6 @@ async def webhook_mp(request: Request, session: Session = Depends(get_session)):
     if not suscripcion:
         return {"status": "not_found"}
 
-    # Actualizar campos
     suscripcion.status = suscripcion_mp["status"]
     suscripcion.updated_at = datetime.now(timezone.utc)
 

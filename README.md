@@ -1,116 +1,227 @@
-# 🚀 Pedilo - Backend API
+# 🍕 Pedilo - Backend API
 
-**Pedilo API** es el motor principal del sistema Pedilo, diseñado para gestionar pedidos online de manera eficiente y sin comisiones. Construido con **FastAPI**, ofrece un rendimiento excepcional, validación automática de datos y documentación interactiva.
+<div align="center">
+
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org/)
+[![SQLModel](https://img.shields.io/badge/SQLModel-FF6F00?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlmodel.tiangolo.com/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
+**Sistema de pedidos online sin comisiones para pequeños negocios**
+
+[Demo](https://pedilo.vercel.app) · [Frontend Repo](https://github.com/thiagostilo2121/pedilo-front) · [Reportar Bug](https://github.com/thiagostilo2121/pedilo-backapi/issues)
+
+</div>
+
+---
+
+## 📖 Sobre el Proyecto
+
+**Pedilo** es una plataforma que permite a pequeños comercios (pizzerías, heladerías, kioscos) recibir pedidos online sin pagar comisiones por transacción. Cada negocio obtiene su propia página pública con catálogo, carrito y checkout con integración a WhatsApp.
+
+Este repositorio contiene el **backend API** construido con FastAPI, siguiendo patrones de arquitectura limpia.
+
+### ✨ Características
+
+- 🏪 **Multi-tenant**: Cada usuario puede tener su propio negocio
+- 📦 **Catálogo Digital**: Productos con categorías, imágenes y stock
+- 🛒 **Sistema de Pedidos**: Estados, notificaciones, tracking por código
+- 💳 **Suscripciones**: Integración con MercadoPago para planes premium
+- 🔐 **Autenticación**: JWT con hashing Argon2 (más seguro que bcrypt)
+- 🖼️ **Multimedia**: Upload de imágenes a Cloudinary
+- 📱 **WhatsApp Ready**: Datos estructurados para integración con WhatsApp Business
+
+---
+
+## 🏗️ Arquitectura
+
+```
+app/
+├── api/              # Capa de presentación
+│   ├── routes/       # Endpoints REST
+│   ├── deps.py       # Dependency Injection
+│   └── middleware.py # Logging, CORS
+├── core/             # Configuración central
+│   ├── config.py     # Settings con pydantic-settings
+│   ├── database.py   # Engine SQLModel
+│   ├── security.py   # JWT + Argon2
+│   └── exceptions.py # Domain exceptions
+├── models/           # Entidades de dominio
+├── schemas/          # DTOs (Pydantic)
+├── services/         # Lógica de negocio (sin dependencias HTTP)
+└── utils/            # Helpers (Cloudinary, etc.)
+```
+
+### Decisiones de Diseño
+
+| Decisión | Razón |
+|----------|-------|
+| **Argon2** sobre bcrypt | Winner de Password Hashing Competition, resistente a GPU cracking |
+| **Domain Exceptions** | Services desacoplados de HTTP, testeables unitariamente |
+| **Soft Delete** | `activo=False` en lugar de DELETE para auditoría |
+| **SQLModel** | Unifica SQLAlchemy + Pydantic, menos boilerplate |
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Lenguaje**: [Python 3.14](https://www.python.org/)
-- **Framework**: [FastAPI](https://fastapi.tiangolo.com/)
-- **ORM**: [SQLModel](https://sqlmodel.tiangolo.com/) (SQLAlchemy + Pydantic)
-- **Base de Datos**: PostgreSQL (Soporte para SQLite en desarrollo)
-- **Migraciones**: [Alembic](https://alembic.sqlalchemy.org/)
-- **Seguridad**: JWT (JSON Web Tokens) con `python-jose` y hashing con `passlib`
-- **Multimedia**: [Cloudinary](https://cloudinary.com/) (Gestión de imágenes)
-- **Validación de Entorno**: `pydantic-settings`
+| Categoría | Tecnología |
+|-----------|------------|
+| **Framework** | [FastAPI](https://fastapi.tiangolo.com/) |
+| **ORM** | [SQLModel](https://sqlmodel.tiangolo.com/) |
+| **Base de Datos** | PostgreSQL / SQLite (dev) |
+| **Auth** | JWT (`python-jose`) + Argon2 (`argon2-cffi`) |
+| **Pagos** | [MercadoPago](https://www.mercadopago.com.ar/developers/) |
+| **Imágenes** | [Cloudinary](https://cloudinary.com/) |
+| **Validación** | Pydantic v2 + `pydantic-settings` |
+| **Linting** | Ruff, Black, MyPy, Bandit |
 
 ---
 
-## 🌟 Características Principales
+## 🚀 Quick Start
 
-- **Gestión de Negocios**: CRUD completo para perfiles comerciales y configuración.
-- **Catálogo Digital**: API para productos, variaciones y categorías.
-- **Sistema de Pedidos**: Recepción, validación y actualización de estados en tiempo real.
-- **Autenticación y Autorización**: Registro de usuarios, login seguro y control de acceso (RBAC).
-- **Public API**: Endpoints optimizados para el consumo del frontend público de clientes.
-- **Integración con Nube**: Carga y optimización de imágenes en Cloudinary.
-- **Suscripciones**: Lógica para el manejo de planes y estados de cuenta premium.
+### Requisitos
 
----
+- Python 3.10+
+- PostgreSQL (o SQLite para desarrollo)
 
-## 📂 Estructura del Proyecto
+### Instalación
 
-```text
-app/
-├── api/          # Rutas (routes) y middlewares
-├── core/         # Configuración central (DB, seguridad, logs)
-├── models/       # Modelos de base de datos (SQLModel)
-├── schemas/      # Modelos de validación (Pydantic schemas)
-├── services/     # Lógica de negocio
-├── utils/        # Funciones auxiliares
-└── main.py       # Punto de entrada de la aplicación
+```bash
+# Clonar repositorio
+git clone https://github.com/thiagostilo2121/pedilo-backapi.git
+cd pedilo-backapi
+
+# Crear entorno virtual
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate   # Windows
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Configurar variables de entorno
+cp .envtemplate .env
+# Editar .env con tus credenciales
+```
+
+### Variables de Entorno
+
+```env
+# Ambiente
+ENVIRONMENT=development          # development | production
+FRONTEND_URL=http://localhost:5173
+
+# Seguridad
+SECRET_KEY=tu-clave-secreta-muy-larga
+
+# Base de Datos
+DATABASE_URL=sqlite:///./dev.db  # o postgresql://...
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=xxx
+CLOUDINARY_API_KEY=xxx
+CLOUDINARY_API_SECRET=xxx
+
+# MercadoPago (opcional)
+MP_ACCESS_TOKEN=xxx
+MP_PLAN_ID=xxx
+MP_WEBHOOK_SECRET=xxx
+```
+
+### Ejecutar
+
+```bash
+# Desarrollo
+uvicorn app.main:app --reload
+
+# La API estará en http://localhost:8000
+# Documentación: http://localhost:8000/docs
 ```
 
 ---
 
-## ⚙️ Configuración e Instalación
+## 📚 API Endpoints
 
-### Requisitos Previos
+### Autenticación
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Registrar usuario |
+| POST | `/api/auth/login` | Login (retorna JWT) |
+| GET | `/api/auth/usuario` | Obtener perfil actual |
 
-- Python 3.10 o superior
-- pip (gestor de paquetes de Python)
-- PostgreSQL (opcional, configurado por defecto)
+### Negocios (Requiere Auth)
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/negocios/me` | Mi negocio |
+| POST | `/api/negocios/` | Crear negocio |
+| PUT | `/api/negocios/me` | Actualizar negocio |
 
-### Pasos para iniciar el proyecto
+### Productos (Requiere Auth)
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/productos` | Listar productos |
+| POST | `/api/productos` | Crear producto |
+| PUT | `/api/productos/{id}` | Actualizar producto |
+| DELETE | `/api/productos/{id}` | Desactivar producto |
 
-1. **Clonar el repositorio**:
-   ```bash
-   git clone https://github.com/thiagostilo2121/pedilo-backapi.git
-   cd pedilo-backapi
-   ```
+### Public API (Sin Auth)
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/public/{slug}` | Info del negocio |
+| GET | `/api/public/{slug}/productos` | Catálogo público |
+| POST | `/api/public/{slug}/pedidos` | Crear pedido |
+| GET | `/api/public/pedidos/{codigo}` | Tracking de pedido |
 
-2. **Crear y activar entorno virtual**:
-   ```bash
-   python -m venv venv
-   # En Windows:
-   .\venv\Scripts\activate
-   # En Linux/macOS:
-   source venv/bin/activate
-   ```
-
-3. **Instalar dependencias**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Variables de Entorno**:
-   Copia el archivo `.envtemplate` a `.env` y completa los valores necesarios:
-   ```bash
-   cp .envtemplate .env
-   ```
-   Asegúrate de configurar:
-   - `DATABASE_URL`
-   - `SECRET_KEY` (para JWT)
-   - `CLOUDINARY_CLOUD_NAME`
-   - `CLOUDINARY_API_KEY`
-   - `CLOUDINARY_API_SECRET`
-   - `MP_ACCESS_TOKEN`
-   - `MP_PLAN_ID`
-
-5. **Iniciar en modo desarrollo**:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-6. **Acceder a la documentación**:
-   - Swagger UI: `http://localhost:8000/docs`
-   - Redoc: `http://localhost:8000/redoc`
+> 📖 Documentación completa en `/docs` (Swagger UI)
 
 ---
 
-## 🐳 Docker Deployment
+## 🧪 Testing
 
-Mentira, aún no configuré Docker.
+```bash
+# Ejecutar tests (coming soon)
+pytest
+
+# Linting
+ruff check .
+black --check .
+mypy .
+
+# Security check
+bandit -r app/
+```
 
 ---
 
-## 🤝 Contribución
+## 🤝 Contribuir
 
-Si quieres mejorar la API de Pedilo, siéntete libre de abrir un issue o enviar un pull request.
+¡Las contribuciones son bienvenidas! 
+
+1. Fork el proyecto
+2. Creá tu feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add: AmazingFeature'`)
+4. Push a la branch (`git push origin feature/AmazingFeature`)
+5. Abrí un Pull Request
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia [MIT](LICENSE).
+Distribuido bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más información.
+
+---
+
+## 👤 Autor
+
+**Thiago Valentín Stilo Limarino**
+
+- GitHub: [@thiagostilo2121](https://github.com/thiagostilo2121)
+
+---
+
+<div align="center">
+
+⭐ Si te sirvió este proyecto, dejá una estrella!
+
+</div>

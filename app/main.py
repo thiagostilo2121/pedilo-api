@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import auth, categorias, negocios, pedidos, productos, public, suscripciones
 from app.api.middleware import LoggingMiddleware
 from app.core.database import create_db_and_tables
+from app.core.config import settings
 from app.core.exceptions import PediloException, EntityNotFoundError, BusinessLogicError, PermissionDeniedError
 
 
@@ -45,9 +46,15 @@ app.include_router(public.router)
 app.include_router(categorias.router)
 app.include_router(suscripciones.router)
 
+cors_origins = (
+    [settings.FRONTEND_URL] 
+    if settings.ENVIRONMENT == "production" 
+    else ["*"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

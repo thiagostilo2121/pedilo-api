@@ -46,9 +46,7 @@ def listar_productos_por_slug(
 
     result = []
     for p in productos:
-        # Validamos usando el modelo base
         p_read = ProductoRead.model_validate(p)
-        # Asignamos manualmente el nombre de la categoría usando la property del modelo
         p_read.categoria = p.categoria_nombre
         result.append(p_read)
         

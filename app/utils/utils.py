@@ -1,7 +1,7 @@
 import re
 import unicodedata
 
-
+# Esto lo hizo completamente la IA
 def generar_slug(texto: str) -> str:
     # Normaliza acentos (á → a, ñ → n, etc.)
     texto = unicodedata.normalize("NFKD", texto)
