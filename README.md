@@ -9,7 +9,7 @@
 
 **Sistema de pedidos online sin comisiones para pequeños negocios**
 
-[Demo](https://pedilo.vercel.app) · [Frontend Repo](https://github.com/thiagostilo2121/pedilo-front) · [Reportar Bug](https://github.com/thiagostilo2121/pedilo-backapi/issues)
+[Pedilo](https://pediloarg.netlify.app) · [Frontend Repo](https://github.com/thiagostilo2121/pedilo-web) · [Reportar Bug](https://github.com/thiagostilo2121/pedilo-api/issues)
 
 </div>
 
@@ -89,8 +89,8 @@ app/
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/thiagostilo2121/pedilo-backapi.git
-cd pedilo-backapi
+git clone https://github.com/thiagostilo2121/pedilo-api.git
+cd pedilo-api
 
 # Crear entorno virtual
 python -m venv .venv
