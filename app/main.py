@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, categorias, negocios, pedidos, productos, public, suscripciones
+from app.api.routes import auth, categorias, negocios, pedidos, productos, public, suscripciones, toppings
 from app.api.middleware import LoggingMiddleware
 from app.core.database import create_db_and_tables
 from app.core.config import settings
@@ -45,6 +45,7 @@ app.include_router(pedidos.router)
 app.include_router(public.router)
 app.include_router(categorias.router)
 app.include_router(suscripciones.router)
+app.include_router(toppings.router)
 
 cors_origins = (
     [settings.FRONTEND_URL] 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from sqlmodel import Field, SQLModel
 
 from app.models.models import Producto
@@ -52,3 +52,21 @@ class ProductoCreate(ProductoBase):
 
 class ProductoRead(ProductoBase):
     id: int
+    
+    @model_validator(mode='wrap')
+    @classmethod
+    def extract_categoria(cls, values, handler):
+        # Si es un objeto Producto (ORM), extraer categoria_nombre
+        if isinstance(values, Producto):
+            # Convertir a dict y agregar categoria desde la relación
+            data = {
+                "id": values.id,
+                "nombre": values.nombre,
+                "descripcion": values.descripcion,
+                "precio": values.precio,
+                "imagen_url": values.imagen_url,
+                "categoria": values.categoria_nombre,
+                "stock": values.stock,
+            }
+            return handler(data)
+        return handler(values)

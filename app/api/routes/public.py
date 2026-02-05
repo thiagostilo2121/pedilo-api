@@ -11,6 +11,7 @@ from app.schemas.producto import ProductoRead
 from app.schemas.negocio import NegocioRead
 from app.schemas.categoria import CategoriaRead
 from app.services.pedido_service import crear_nuevo_pedido
+from app.services import topping_service
 
 router = APIRouter(prefix="/public", tags=["Públicos"])
 
@@ -94,3 +95,23 @@ def ver_pedido(slug: str, codigo: str, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
     return pedido
+
+
+@router.get("/{slug}/productos/{producto_id}/toppings")
+def obtener_toppings_producto_publico(
+    slug: str,
+    producto_id: int,
+    session: Session = Depends(get_session),
+):
+    """Obtiene los grupos de toppings disponibles para un producto (API pública)"""
+    negocio = session.exec(
+        select(Negocio).where(Negocio.slug == slug, Negocio.activo)
+    ).first()
+    if not negocio:
+        raise HTTPException(status_code=404, detail="Negocio no encontrado")
+
+    producto = session.get(Producto, producto_id)
+    if not producto or producto.negocio_id != negocio.id or not producto.activo:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    return topping_service.obtener_toppings_producto(session, producto_id)
