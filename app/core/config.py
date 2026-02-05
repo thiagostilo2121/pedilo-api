@@ -17,8 +17,7 @@ class Settings(BaseSettings):
 
     # Mercado Pago
     MP_ACCESS_TOKEN: str | None = None
-    MP_PLAN_ID: str | None = None
-    MP_WEBHOOK_SECRET: str | None = None  # For HMAC signature verification (luego lo implemento bien)
+    MP_WEBHOOK_SECRET: str | None = None  # Clave secreta para validar firma HMAC de webhooks
 
     class Config:
         env_file = ".env"
