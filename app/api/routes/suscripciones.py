@@ -40,6 +40,49 @@ def get_mi_suscripcion(
     return suscripcion
 
 
+@router.get("/suscripcion/checkout-url")
+def get_checkout_url(
+    usuario=Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """
+    Genera la URL de checkout de Mercado Pago con el external_reference del usuario.
+    
+    El usuario debe estar autenticado. El external_reference permite enlazar
+    la suscripción de MP con el usuario correcto cuando llegue el webhook.
+    
+    Returns:
+        url: URL de checkout de MP
+        has_subscription: Si el usuario ya tiene una suscripción activa
+    """
+    from app.services.sus_service import obtener_checkout_url
+    
+    # Verificar si ya tiene suscripción activa
+    suscripcion_existente = session.exec(
+        select(Subscription).where(
+            Subscription.usuario_id == usuario.id,
+            Subscription.status.in_(["authorized", "active"])
+        )
+    ).first()
+    
+    if suscripcion_existente:
+        return {
+            "url": None,
+            "has_subscription": True,
+            "message": "Ya tenés una suscripción activa"
+        }
+    
+    checkout_url = obtener_checkout_url(
+        external_reference=str(usuario.id),
+        payer_email=usuario.email
+    )
+    
+    return {
+        "url": checkout_url,
+        "has_subscription": False
+    }
+
+
 @router.post("/suscripciones/cancelar", deprecated=True)
 def cancelar_suscripcion():
     """
@@ -88,11 +131,17 @@ async def webhook_mp(request: Request, session: Session = Depends(get_session)):
     if topic not in ["subscription_preapproval", "subscription_authorized_payment"]:
         return {"status": "ignored", "reason": "topic_not_handled"}
     
+    # Detectar notificaciones de prueba de MP (envían IDs ficticios como "123456")
+    # Estas son solo para verificar que el endpoint responde, no tienen datos reales
+    if str(mp_id) in ["123456", "12345", "1234567890"]:
+        logger.info(f"Notificación de prueba detectada (id={mp_id}), respondiendo OK")
+        return {"status": "ok", "test": True, "message": "Test notification received"}
+    
     # Obtener datos completos de la suscripción desde MP
     suscripcion_mp = obtener_suscripcion_mp(mp_id)
     if not suscripcion_mp:
-        logger.error(f"No se pudo obtener suscripción {mp_id} de MP")
-        return {"status": "error", "reason": "mp_fetch_failed"}
+        logger.warning(f"No se pudo obtener suscripción {mp_id} de MP - puede ser ID inválido o de prueba")
+        return {"status": "ignored", "reason": "subscription_not_found_in_mp"}
     
     # Buscar suscripción existente en nuestra DB
     suscripcion = session.exec(
