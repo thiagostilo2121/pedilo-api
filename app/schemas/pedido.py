@@ -1,11 +1,13 @@
 from pydantic import BaseModel
 from app.models.models import PedidoEstado
+from app.schemas.topping import ToppingSeleccionado
 
 
 class PedidoItemCreate(BaseModel):
     producto_id: int
     cantidad: int
     nombre_producto: str | None = None
+    toppings: list[ToppingSeleccionado] = []
 
 
 class PedidoCreate(BaseModel):
@@ -16,9 +18,14 @@ class PedidoCreate(BaseModel):
     items: list[PedidoItemCreate]
 
 
-class PedidoItemRead(PedidoItemCreate):
+class PedidoItemRead(BaseModel):
     id: int
+    producto_id: int | None
+    nombre_producto: str
+    precio_unitario: int
+    cantidad: int
     subtotal: int
+    toppings_seleccionados: list[dict] = []
 
 
 class PedidoRead(BaseModel):

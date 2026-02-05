@@ -3,16 +3,18 @@ from sqlmodel import Session, select
 from app.models.models import Negocio, Pedido, PedidoItem, Producto
 from app.schemas.pedido import PedidoCreate
 from app.core.exceptions import EntityNotFoundError, BusinessLogicError, PermissionDeniedError
+from app.services.topping_service import validar_toppings_seleccionados
+
 
 def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedido:
 
     negocio = session.exec(
         select(Negocio).where(Negocio.slug == slug, Negocio.activo == True)
     ).first()
-    
+
     if not negocio:
         raise EntityNotFoundError("Negocio no encontrado")
-    
+
     if not negocio.acepta_pedidos:
         raise PermissionDeniedError("Este negocio no está recibiendo pedidos en este momento")
 
@@ -24,7 +26,7 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
 
     total = 0
     items_procesados = []
-    
+
     for item in data.items:
         if item.cantidad <= 0:
             raise BusinessLogicError("La cantidad de los productos debe ser mayor a 0")
@@ -36,15 +38,27 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
         if not producto.stock:
             raise BusinessLogicError(f"El producto '{producto.nombre}' no tiene stock disponible")
 
-        subtotal = producto.precio * item.cantidad
+        # Validar y procesar toppings
+        toppings_procesados = []
+        precio_toppings = 0
+        if item.toppings:
+            toppings_dict = [t.model_dump() for t in item.toppings]
+            toppings_procesados, precio_toppings = validar_toppings_seleccionados(
+                session, producto.id, toppings_dict
+            )
+
+        # Calcular subtotal: (precio_producto + precio_toppings) * cantidad
+        precio_unitario_total = producto.precio + precio_toppings
+        subtotal = precio_unitario_total * item.cantidad
         total += subtotal
-        
+
         items_procesados.append({
             "producto_id": producto.id,
             "nombre_producto": producto.nombre,
-            "precio_unitario": producto.precio,
+            "precio_unitario": precio_unitario_total,
             "cantidad": item.cantidad,
-            "subtotal": subtotal
+            "subtotal": subtotal,
+            "toppings_seleccionados": toppings_procesados,
         })
 
     codigo = uuid4().hex[:6].upper()
@@ -72,3 +86,4 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
     session.commit()
     session.refresh(pedido)
     return pedido
+

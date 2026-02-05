@@ -63,6 +63,7 @@ class Negocio(SQLModel, table=True):
     productos: list["Producto"] = Relationship(back_populates="negocio")
     pedidos: list["Pedido"] = Relationship(back_populates="negocio")
     categorias: list["Categoria"] = Relationship(back_populates="negocio")
+    grupos_topping: list["GrupoTopping"] = Relationship(back_populates="negocio")
 
 
 class Categoria(SQLModel, table=True):
@@ -95,6 +96,7 @@ class Producto(SQLModel, table=True):
 
     negocio: Negocio | None = Relationship(back_populates="productos")
     categorias: Categoria | None = Relationship(back_populates="productos")
+    grupos_topping: list["ProductoGrupoTopping"] = Relationship(back_populates="producto")
 
     @property
     def categoria_nombre(self) -> str | None:
@@ -129,6 +131,8 @@ class PedidoItem(SQLModel, table=True):
     precio_unitario: int
     cantidad: int
     subtotal: int
+    toppings_seleccionados: list[dict] = Field(sa_column=Column[Any](JSON), default=[])
+    # Formato: [{"nombre": "Chocolate", "precio": 0}, {"nombre": "Queso extra", "precio": 200}]
 
     pedido: Pedido | None = Relationship(back_populates="items")
 
@@ -158,3 +162,46 @@ class Subscription(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class GrupoTopping(SQLModel, table=True):
+    """Grupo de toppings (ej: 'Sabores', 'Extras', 'Salsas')"""
+    __tablename__ = "grupos_topping"
+
+    id: int | None = Field(default=None, primary_key=True)
+    negocio_id: int = Field(foreign_key="negocios.id")
+    nombre: str
+    activo: bool = True
+    creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    negocio: "Negocio" = Relationship(back_populates="grupos_topping")
+    toppings: list["Topping"] = Relationship(back_populates="grupo")
+    productos_config: list["ProductoGrupoTopping"] = Relationship(back_populates="grupo")
+
+
+class Topping(SQLModel, table=True):
+    """Topping individual dentro de un grupo"""
+    __tablename__ = "toppings"
+
+    id: int | None = Field(default=None, primary_key=True)
+    grupo_id: int = Field(foreign_key="grupos_topping.id")
+    nombre: str
+    precio_extra: int = 0
+    activo: bool = True
+    creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    grupo: GrupoTopping = Relationship(back_populates="toppings")
+
+
+class ProductoGrupoTopping(SQLModel, table=True):
+    """Relación M:N entre Producto y GrupoTopping con configuración de selecciones"""
+    __tablename__ = "producto_grupo_topping"
+
+    id: int | None = Field(default=None, primary_key=True)
+    producto_id: int = Field(foreign_key="productos.id")
+    grupo_id: int = Field(foreign_key="grupos_topping.id")
+    min_selecciones: int = 0  # Mínimo de toppings requeridos (0 = opcional)
+    max_selecciones: int = 1  # Máximo de toppings seleccionables
+
+    producto: "Producto" = Relationship(back_populates="grupos_topping")
+    grupo: GrupoTopping = Relationship(back_populates="productos_config")
