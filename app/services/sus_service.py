@@ -99,55 +99,31 @@ def obtener_checkout_url(external_reference: str, payer_email: str) -> str:
     """
     Genera una URL de checkout de Mercado Pago para suscripción.
     
-    Crea un preapproval (suscripción) con el external_reference del usuario,
-    permitiendo enlazar la suscripción con el usuario cuando llegue el webhook.
+    Usa MP_PLAN_ID para generar el link de checkout.
+    Esto evita el error "Cannot operate between different countries"
+    cuando el backend está hosteado fuera de Argentina.
     
     Args:
         external_reference: ID del usuario en tu sistema
         payer_email: Email del usuario
     
     Returns:
-        URL de checkout (init_point) de Mercado Pago
+        URL de checkout de Mercado Pago
     """
-    url = "https://api.mercadopago.com/preapproval"
-    headers = {
-        "Authorization": f"Bearer {MP_ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
+    plan_id = settings.MP_PLAN_ID
     
-    # Configuración del Plan Profesional
-    payload = {
-        "reason": "Suscripción Plan Profesional - Pedilo",
-        "external_reference": external_reference,
-        "payer_email": payer_email,
-        "auto_recurring": {
-            "frequency": 1,
-            "frequency_type": "months",
-            "transaction_amount": 15000,  # $9.999 ARS - ajustar según tu plan
-            "currency_id": "ARS"
-        },
-        "back_url": settings.FRONTEND_URL,
-        "status": "pending"  # pending = requiere que usuario complete checkout
-    }
+    if not plan_id:
+        logger.error("MP_PLAN_ID no configurado")
+        return ""
     
-    try:
-        res = requests.post(url, json=payload, headers=headers)
-        res.raise_for_status()
-        data = res.json()
-        
-        # init_point es la URL de checkout
-        init_point = data.get("init_point")
-        if init_point:
-            return init_point
-        
-        # Fallback: construir URL manualmente si no viene init_point
-        preapproval_id = data.get("id")
-        if preapproval_id:
-            return f"https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_id={preapproval_id}"
-        
-        logger.error(f"Respuesta de MP sin init_point ni id: {data}")
-        return ""
-        
-    except requests.RequestException as e:
-        logger.error(f"Error creando checkout URL: {e}")
-        return ""
+    # Generar URL de checkout con el plan y external_reference
+    from urllib.parse import quote
+    
+    checkout_url = (
+        f"https://www.mercadopago.com.ar/subscriptions/checkout"
+        f"?preapproval_plan_id={plan_id}"
+        f"&external_reference={quote(external_reference)}"
+        f"&payer_email={quote(payer_email)}"
+    )
+    
+    return checkout_url
