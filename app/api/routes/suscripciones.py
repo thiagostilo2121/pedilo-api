@@ -72,6 +72,34 @@ def get_checkout_url(
             "message": "Ya tenés una suscripción activa"
         }
     
+    # Testing: habilitar premium automático para usuario ID 7 en development
+    from app.core.config import settings
+    if settings.ENVIRONMENT == "development" and usuario.id == 7:
+        # Crear suscripción de testing
+        test_subscription = Subscription(
+            usuario_id=usuario.id,
+            status="authorized",
+            start_date=datetime.now(timezone.utc),
+            amount=0,
+            currency="ARS",
+            frequency=1,
+            frequency_type="months",
+            mp_subscription_id="TEST_SUBSCRIPTION_USER_7"
+        )
+        session.add(test_subscription)
+        
+        # Habilitar premium
+        usuario.es_premium = True
+        session.add(usuario)
+        session.commit()
+        
+        logger.info(f"Testing: Premium habilitado para usuario {usuario.id}")
+        return {
+            "url": None,
+            "has_subscription": True,
+            "message": "Testing: Premium habilitado automáticamente"
+        }
+    
     checkout_url = obtener_checkout_url(
         external_reference=str(usuario.id),
         payer_email=usuario.email
