@@ -1,10 +1,14 @@
 """
 Service layer para manejo de suscripciones.
-Separa la lógica de negocio de las rutas HTTP.
+Incluye lógica de negocio y integración con Mercado Pago.
 """
+import hmac
+import hashlib
 import logging
+import requests
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+from urllib.parse import quote
 
 from sqlmodel import Session, select
 
@@ -14,6 +18,100 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 TRIAL_DAYS = 14
+MP_ACCESS_TOKEN = settings.MP_ACCESS_TOKEN
+MP_WEBHOOK_SECRET = getattr(settings, 'MP_WEBHOOK_SECRET', None)
+
+
+# === Funciones de integración con Mercado Pago ===
+
+def validar_firma_webhook(x_signature: str, x_request_id: str, data_id: str) -> bool:
+    """
+    Valida la firma HMAC SHA256 del webhook de Mercado Pago.
+    """
+    if not MP_WEBHOOK_SECRET:
+        logger.warning("MP_WEBHOOK_SECRET no configurado, omitiendo validación de firma")
+        return True
+    
+    try:
+        parts = dict(part.split("=", 1) for part in x_signature.split(","))
+        ts = parts.get("ts")
+        v1 = parts.get("v1")
+        
+        if not ts or not v1:
+            logger.error("x-signature malformada: falta ts o v1")
+            return False
+        
+        manifest = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
+        
+        signature = hmac.new(
+            MP_WEBHOOK_SECRET.encode(),
+            manifest.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if v1 and hmac.compare_digest(signature, v1):
+            return True
+        else:
+            logger.warning(f"Firma inválida. Esperada: {signature[:16]}..., Recibida: {v1[:16] if v1 else 'None'}...")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error validando firma webhook: {e}")
+        return False
+
+
+def obtener_suscripcion_mp(mp_subscription_id: str) -> dict | None:
+    """Obtiene los datos de una suscripción desde la API de Mercado Pago."""
+    url = f"https://api.mercadopago.com/preapproval/{mp_subscription_id}"
+    headers = {"Authorization": f"Bearer {MP_ACCESS_TOKEN}"}
+    
+    try:
+        res = requests.get(url, headers=headers)
+        res.raise_for_status()
+        return res.json()
+    except requests.RequestException as e:
+        logger.error(f"Error obteniendo suscripción {mp_subscription_id}: {e}")
+        return None
+
+
+def buscar_suscripcion_por_email(email: str) -> dict | None:
+    """Busca suscripciones activas de un usuario por email."""
+    url = "https://api.mercadopago.com/preapproval/search"
+    headers = {"Authorization": f"Bearer {MP_ACCESS_TOKEN}"}
+    params = {"payer_email": email, "status": "authorized"}
+    
+    try:
+        res = requests.get(url, headers=headers, params=params)
+        res.raise_for_status()
+        data = res.json()
+        results = data.get("results", [])
+        return results[0] if results else None
+    except requests.RequestException as e:
+        logger.error(f"Error buscando suscripción para {email}: {e}")
+        return None
+
+
+def obtener_checkout_url(external_reference: str, payer_email: str) -> str:
+    """
+    Genera una URL de checkout de Mercado Pago para suscripción.
+    """
+    plan_id = getattr(settings, 'MP_PLAN_ID', None)
+    
+    if not plan_id:
+        logger.error("MP_PLAN_ID no configurado")
+        return ""
+    
+    checkout_url = (
+        f"https://www.mercadopago.com.ar/subscriptions/checkout"
+        f"?preapproval_plan_id={plan_id}"
+        f"&external_reference={quote(external_reference)}"
+        f"&payer_email={quote(payer_email)}"
+    )
+    
+    return checkout_url
+
+
+# === Funciones de lógica de negocio ===
 
 
 def obtener_suscripcion_usuario(session: Session, usuario_id: int) -> Optional[Subscription]:

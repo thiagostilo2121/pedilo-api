@@ -14,8 +14,6 @@ from app.services.suscripcion_service import (
     tiene_suscripcion_activa,
     crear_suscripcion_testing,
     procesar_webhook_suscripcion,
-)
-from app.services.sus_service import (
     obtener_suscripcion_mp,
     obtener_checkout_url,
     validar_firma_webhook,
