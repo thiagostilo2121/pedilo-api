@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 class ToppingBase(BaseModel):
     nombre: str
     precio_extra: int = Field(default=0, ge=0)
+    disponible: bool = True
 
 
 class ToppingCreate(ToppingBase):
@@ -15,6 +16,7 @@ class ToppingCreate(ToppingBase):
 class ToppingUpdate(BaseModel):
     nombre: str | None = None
     precio_extra: int | None = Field(default=None, ge=0)
+    disponible: bool | None = None
 
 
 class ToppingRead(ToppingBase):
@@ -34,6 +36,7 @@ class GrupoToppingCreate(GrupoToppingBase):
 
 class GrupoToppingUpdate(BaseModel):
     nombre: str | None = None
+    toppings: list[ToppingCreate] | None = None
 
 
 class GrupoToppingRead(GrupoToppingBase):
@@ -64,5 +67,5 @@ class ProductoToppingRead(BaseModel):
 class ToppingSeleccionado(BaseModel):
     """Topping seleccionado por el cliente al hacer un pedido"""
     topping_id: int
-    nombre: str | None = None  # Se rellena automáticamente en el backend
-    precio: int | None = None  # Se rellena automáticamente en el backend
+    nombre: str | None = None
+    precio: int | None = None

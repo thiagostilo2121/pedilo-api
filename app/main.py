@@ -8,7 +8,7 @@ from app.api.routes import auth, categorias, negocios, pedidos, productos, publi
 from app.api.middleware import LoggingMiddleware
 from app.core.database import create_db_and_tables
 from app.core.config import settings
-from app.core.exceptions import PediloException, EntityNotFoundError, BusinessLogicError, PermissionDeniedError
+from app.core.exceptions import EntityNotFoundError, BusinessLogicError, PermissionDeniedError
 
 
 @asynccontextmanager
