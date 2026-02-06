@@ -187,6 +187,7 @@ class Topping(SQLModel, table=True):
     grupo_id: int = Field(foreign_key="grupos_topping.id")
     nombre: str
     precio_extra: int = 0
+    disponible: bool = Field(default=True)
     activo: bool = True
     creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

@@ -35,6 +35,7 @@ def crear_grupo_topping(
             grupo_id=grupo.id,
             nombre=topping_data.nombre,
             precio_extra=topping_data.precio_extra,
+            disponible=topping_data.disponible,
         )
         session.add(topping)
 
@@ -72,6 +73,24 @@ def actualizar_grupo_topping(
     if data.nombre is not None:
         grupo.nombre = data.nombre
 
+    if data.toppings is not None:
+        # 1. Soft-delete toppings actuales
+        for topping in grupo.toppings:
+            if topping.activo:
+                topping.activo = False
+                session.add(topping)
+        
+        # 2. Crear nuevos toppings
+        for topping_data in data.toppings:
+            nuevo_topping = Topping(
+                grupo_id=grupo.id,
+                nombre=topping_data.nombre,
+                precio_extra=topping_data.precio_extra,
+                disponible=topping_data.disponible,
+                activo=True
+            )
+            session.add(nuevo_topping)
+
     session.add(grupo)
     session.commit()
     session.refresh(grupo)
@@ -98,6 +117,7 @@ def agregar_topping_a_grupo(
         grupo_id=grupo.id,
         nombre=data.nombre,
         precio_extra=data.precio_extra,
+        disponible=data.disponible,
     )
     session.add(topping)
     session.commit()
@@ -122,6 +142,8 @@ def actualizar_topping(
         topping.nombre = data.nombre
     if data.precio_extra is not None:
         topping.precio_extra = data.precio_extra
+    if data.disponible is not None:
+        topping.disponible = data.disponible
 
     session.add(topping)
     session.commit()
@@ -211,7 +233,7 @@ def obtener_toppings_producto(
                 "min_selecciones": config.min_selecciones,
                 "max_selecciones": config.max_selecciones,
                 "toppings": [
-                    {"id": t.id, "nombre": t.nombre, "precio_extra": t.precio_extra}
+                    {"id": t.id, "nombre": t.nombre, "precio_extra": t.precio_extra, "disponible": t.disponible}
                     for t in toppings_activos
                 ],
             })
@@ -241,6 +263,7 @@ def validar_toppings_seleccionados(
             topping_map[topping["id"]] = {
                 "nombre": topping["nombre"],
                 "precio": topping["precio_extra"],
+                "disponible": topping["disponible"],
                 "grupo_id": config["grupo_id"],
                 "grupo_nombre": config["grupo_nombre"],
                 "min_selecciones": config["min_selecciones"],
@@ -253,6 +276,9 @@ def validar_toppings_seleccionados(
         topping_id = sel.get("topping_id") or sel.get("id")
         if topping_id not in topping_map:
             raise BusinessLogicError(f"Topping {topping_id} no disponible para este producto")
+        
+        if not topping_map[topping_id]["disponible"]:
+            raise BusinessLogicError(f"El topping '{topping_map[topping_id]['nombre']}' no está disponible")
 
         grupo_id = topping_map[topping_id]["grupo_id"]
         if grupo_id not in selecciones_por_grupo:
