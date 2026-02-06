@@ -11,6 +11,7 @@ class ProductoBase(SQLModel):
     imagen_url: str | None = None
     categoria: str | None = None
     stock: bool | None = True
+    destacado: bool | None = False
 
     model_config = {
         "json_schema_extra": {
@@ -38,6 +39,7 @@ class ProductoUpdate(BaseModel):
     imagen_url: str | None = None
     categoria: str | None = None
     stock: bool | None = None
+    destacado: bool | None = None
 
     @classmethod
     def from_orm(cls, producto: Producto):
@@ -67,6 +69,7 @@ class ProductoRead(ProductoBase):
                 "imagen_url": values.imagen_url,
                 "categoria": values.categoria_nombre,
                 "stock": values.stock,
+                "destacado": values.destacado,
             }
             return handler(data)
         return handler(values)
