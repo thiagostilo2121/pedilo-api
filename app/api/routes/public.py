@@ -96,7 +96,6 @@ def ver_pedido(slug: str, codigo: str, session: Session = Depends(get_session)):
 
     return pedido
 
-
 @router.get("/{slug}/productos/{producto_id}/toppings")
 def obtener_toppings_producto_publico(
     slug: str,

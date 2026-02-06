@@ -47,6 +47,7 @@ class Negocio(SQLModel, table=True):
     descripcion: str | None = None
     slug: str = Field(index=True, unique=True)
     logo_url: str | None = None
+    banner_url: str | None = None
     color_primario: str | None = None
     color_secundario: str | None = None
     metodos_pago: list[str] = Field(sa_column=Column[Any](JSON), default=[])
@@ -91,6 +92,7 @@ class Producto(SQLModel, table=True):
     imagen_url: str | None = None
     categoria_id: int | None = Field(default=None, foreign_key="categorias.id")
     stock: bool | None = True
+    destacado: bool = Field(default=False)
     activo: bool = True
     creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

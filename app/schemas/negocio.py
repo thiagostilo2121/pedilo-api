@@ -7,6 +7,7 @@ class NegocioBase(SQLModel):
     descripcion: str | None = Field(default=None, max_length=240)
     slug: str = Field(min_length=1)
     logo_url: str | None = None
+    banner_url: str | None = None
     color_primario: str | None = None
     color_secundario: str | None = None
     metodos_pago: list[str] = []
@@ -53,6 +54,7 @@ class NegocioUpdate(BaseModel):
     direccion: str | None = None
     horario: str | None = None
     acepta_pedidos: bool | None = None
+    banner_url: str | None = None
 
 
 class NegocioCreate(NegocioBase):
