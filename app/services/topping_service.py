@@ -74,13 +74,11 @@ def actualizar_grupo_topping(
         grupo.nombre = data.nombre
 
     if data.toppings is not None:
-        # 1. Soft-delete toppings actuales
         for topping in grupo.toppings:
             if topping.activo:
                 topping.activo = False
                 session.add(topping)
         
-        # 2. Crear nuevos toppings
         for topping_data in data.toppings:
             nuevo_topping = Topping(
                 grupo_id=grupo.id,
@@ -133,7 +131,6 @@ def actualizar_topping(
     if not topping or not topping.activo:
         raise EntityNotFoundError("Topping no encontrado")
 
-    # Verificar pertenencia al negocio
     grupo = session.get(GrupoTopping, topping.grupo_id)
     if not grupo or grupo.negocio_id != negocio_id:
         raise EntityNotFoundError("Topping no encontrado")
@@ -179,7 +176,6 @@ def configurar_toppings_producto(
     if not producto or not producto.activo or producto.negocio_id != negocio_id:
         raise EntityNotFoundError("Producto no encontrado")
 
-    # Eliminar configuraciones anteriores
     statement = select(ProductoGrupoTopping).where(
         ProductoGrupoTopping.producto_id == producto_id
     )
@@ -187,7 +183,6 @@ def configurar_toppings_producto(
     for existente in existentes:
         session.delete(existente)
 
-    # Crear nuevas configuraciones
     for config in configs:
         grupo = session.get(GrupoTopping, config.grupo_id)
         if not grupo or not grupo.activo or grupo.negocio_id != negocio_id:
@@ -256,7 +251,6 @@ def validar_toppings_seleccionados(
     if not configs and toppings_seleccionados:
         raise BusinessLogicError("Este producto no acepta toppings")
 
-    # Crear mapa de topping_id -> (nombre, precio, grupo_id)
     topping_map = {}
     for config in configs:
         for topping in config["toppings"]:
@@ -270,7 +264,6 @@ def validar_toppings_seleccionados(
                 "max_selecciones": config["max_selecciones"],
             }
 
-    # Contar selecciones por grupo
     selecciones_por_grupo: dict[int, list[int]] = {}
     for sel in toppings_seleccionados:
         topping_id = sel.get("topping_id") or sel.get("id")
@@ -285,7 +278,6 @@ def validar_toppings_seleccionados(
             selecciones_por_grupo[grupo_id] = []
         selecciones_por_grupo[grupo_id].append(topping_id)
 
-    # Validar min/max por grupo
     for config in configs:
         grupo_id = config["grupo_id"]
         seleccionados = selecciones_por_grupo.get(grupo_id, [])
@@ -302,7 +294,6 @@ def validar_toppings_seleccionados(
                 f"opción(es) de '{config['grupo_nombre']}'"
             )
 
-    # Procesar toppings y calcular precio
     toppings_procesados = []
     precio_total = 0
     for sel in toppings_seleccionados:

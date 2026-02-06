@@ -36,7 +36,7 @@ class GrupoToppingCreate(GrupoToppingBase):
 
 class GrupoToppingUpdate(BaseModel):
     nombre: str | None = None
-    toppings: list[ToppingCreate] | None = None  # Pydantic will allow parsing, we handle IDs in service logic if needed or treat as replacement
+    toppings: list[ToppingCreate] | None = None
 
 
 class GrupoToppingRead(GrupoToppingBase):
@@ -67,5 +67,5 @@ class ProductoToppingRead(BaseModel):
 class ToppingSeleccionado(BaseModel):
     """Topping seleccionado por el cliente al hacer un pedido"""
     topping_id: int
-    nombre: str | None = None  # Se rellena automáticamente en el backend
-    precio: int | None = None  # Se rellena automáticamente en el backend
+    nombre: str | None = None
+    precio: int | None = None

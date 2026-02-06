@@ -201,8 +201,8 @@ class ProductoGrupoTopping(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     producto_id: int = Field(foreign_key="productos.id")
     grupo_id: int = Field(foreign_key="grupos_topping.id")
-    min_selecciones: int = 0  # Mínimo de toppings requeridos (0 = opcional)
-    max_selecciones: int = 1  # Máximo de toppings seleccionables
+    min_selecciones: int = 0
+    max_selecciones: int = 1
 
     producto: "Producto" = Relationship(back_populates="grupos_topping")
     grupo: GrupoTopping = Relationship(back_populates="productos_config")
