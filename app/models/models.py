@@ -65,6 +65,7 @@ class Negocio(SQLModel, table=True):
     pedidos: list["Pedido"] = Relationship(back_populates="negocio")
     categorias: list["Categoria"] = Relationship(back_populates="negocio")
     grupos_topping: list["GrupoTopping"] = Relationship(back_populates="negocio")
+    promociones: list["Promocion"] = Relationship(back_populates="negocio")
 
 
 class Categoria(SQLModel, table=True):
@@ -119,8 +120,12 @@ class Pedido(SQLModel, table=True):
     telefono_cliente: str | None = None
     creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    promocion_id: int | None = Field(default=None, foreign_key="promociones.id")
+    descuento_aplicado: int = 0
+
     negocio: Negocio | None = Relationship(back_populates="pedidos")
     items: list["PedidoItem"] = Relationship(back_populates="pedido")
+    promocion: Optional["Promocion"] = Relationship(back_populates="pedidos")
 
 
 class PedidoItem(SQLModel, table=True):
@@ -208,3 +213,37 @@ class ProductoGrupoTopping(SQLModel, table=True):
 
     producto: "Producto" = Relationship(back_populates="grupos_topping")
     grupo: GrupoTopping = Relationship(back_populates="productos_config")
+
+
+class PromocionTipo(str, Enum):
+    PORCENTAJE = "porcentaje"
+    MONTO_FIJO = "monto_fijo"
+    DOS_POR_UNO = "2x1"
+    ENVIO_GRATIS = "envio_gratis"
+
+class Promocion(SQLModel, table=True):
+    __tablename__ = "promociones"
+
+    id: int | None = Field(default=None, primary_key=True)
+    negocio_id: int = Field(foreign_key="negocios.id")
+    nombre: str
+    codigo: str = Field(index=True)
+    descripcion: str | None = None
+    tipo: PromocionTipo
+    valor: float # Porcentaje, monto fijo, o 0 para otros tipos
+    
+    # Reglas flexibles: min_compra, productos_ids, categorias_ids, buy_x, get_y
+    reglas: dict = Field(sa_column=Column[Any](JSON), default={})
+    
+    fecha_inicio: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    fecha_fin: datetime | None = None
+    activo: bool = True
+    
+    limite_usos_total: int | None = None
+    limite_usos_por_usuario: int | None = 1
+    usos_actuales: int = 0
+    
+    creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    negocio: "Negocio" = Relationship(back_populates="promociones")
+    pedidos: list["Pedido"] = Relationship(back_populates="promocion")

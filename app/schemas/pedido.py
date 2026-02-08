@@ -15,6 +15,7 @@ class PedidoCreate(BaseModel):
     tipo_entrega: str | None = None
     nombre_cliente: str | None = None
     telefono_cliente: str | None = None
+    codigo_cupon: str | None = None
     items: list[PedidoItemCreate]
 
 
@@ -37,4 +38,5 @@ class PedidoRead(BaseModel):
     tipo_entrega: str | None
     nombre_cliente: str | None
     telefono_cliente: str | None
+    descuento_aplicado: int = 0
     items: list[PedidoItemRead]

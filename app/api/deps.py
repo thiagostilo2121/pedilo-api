@@ -51,3 +51,10 @@ def get_negocio_del_usuario(session: Session, usuario: Usuario):
     if not negocio:
         raise HTTPException(status_code=403, detail="El usuario no tiene un negocio activo")
     return negocio
+
+
+def get_current_user_negocio(
+    session: Session = Depends(get_session),
+    usuario: Usuario = Depends(get_current_user),
+):
+    return get_negocio_del_usuario(session, usuario)
