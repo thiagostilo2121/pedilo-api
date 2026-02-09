@@ -12,8 +12,11 @@ security = HTTPBearer()
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
+from app.core.rate_limit import limiter
+
 @router.post("/register", response_model=UsuarioRead)
-def registrar_usuario(usuario: UsuarioCreate, session: Session = Depends(get_session)):
+@limiter.limit("5/minute")
+def registrar_usuario(request: Request, usuario: UsuarioCreate, session: Session = Depends(get_session)):
     existente = session.exec(select(Usuario).where(Usuario.email == usuario.email)).first()
     if existente:
         raise HTTPException(status_code=400, detail="Email ya registrado")
@@ -32,7 +35,8 @@ def registrar_usuario(usuario: UsuarioCreate, session: Session = Depends(get_ses
 
 
 @router.post("/login", response_model=Token)
-def login(data: LoginRequest, session: Session = Depends(get_session)):
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginRequest, session: Session = Depends(get_session)):
     usuario = session.exec(select(Usuario).where(Usuario.email == data.email)).first()
     if not usuario or not verify_password(data.password, usuario.password_hash):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")

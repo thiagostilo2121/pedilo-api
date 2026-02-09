@@ -58,9 +58,7 @@ class ProductoRead(ProductoBase):
     @model_validator(mode='wrap')
     @classmethod
     def extract_categoria(cls, values, handler):
-        # Si es un objeto Producto (ORM), extraer categoria_nombre
         if isinstance(values, Producto):
-            # Convertir a dict y agregar categoria desde la relación
             data = {
                 "id": values.id,
                 "nombre": values.nombre,

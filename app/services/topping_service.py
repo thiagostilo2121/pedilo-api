@@ -305,4 +305,106 @@ def validar_toppings_seleccionados(
         })
         precio_total += info["precio"]
 
+
+def obtener_toppings_para_varios_productos(
+    session: Session, producto_ids: list[int]
+) -> dict[int, list[dict]]:
+    """Obtiene los grupos de toppings configurados para múltiples productos, retornando un mapa {producto_id: configs}"""
+    statement = (
+        select(ProductoGrupoTopping)
+        .where(ProductoGrupoTopping.producto_id.in_(producto_ids))
+        .options(joinedload(ProductoGrupoTopping.grupo).joinedload(GrupoTopping.toppings))
+    )
+    configs = session.exec(statement).unique().all()
+    
+    result = {}
+    # First, group by product_id
+    temp_map = {}
+    for config in configs:
+        if config.grupo.activo:
+            if config.producto_id not in temp_map:
+                temp_map[config.producto_id] = []
+            
+            toppings_activos = [t for t in config.grupo.toppings if t.activo]
+            temp_map[config.producto_id].append({
+                "grupo_id": config.grupo.id,
+                "grupo_nombre": config.grupo.nombre,
+                "min_selecciones": config.min_selecciones,
+                "max_selecciones": config.max_selecciones,
+                "toppings": [
+                    {"id": t.id, "nombre": t.nombre, "precio_extra": t.precio_extra, "disponible": t.disponible}
+                    for t in toppings_activos
+                ],
+            })
+            
+    return temp_map
+
+
+def validar_toppings_con_config(
+    configs: list[dict],
+    toppings_seleccionados: list[dict],
+) -> tuple[list[dict], int]:
+    """
+    Valida los toppings seleccionados contra una configuración ya cargada en memoria.
+    Retorna (toppings_procesados, precio_total).
+    """
+    if not configs and toppings_seleccionados:
+        raise BusinessLogicError("Este producto no acepta toppings")
+
+    topping_detail_map = {}
+    for config in configs:
+        for topping in config["toppings"]:
+            topping_detail_map[topping["id"]] = {
+                "nombre": topping["nombre"],
+                "precio": topping["precio_extra"],
+                "disponible": topping["disponible"],
+                "grupo_id": config["grupo_id"],
+                "grupo_nombre": config["grupo_nombre"],
+                "min_selecciones": config["min_selecciones"],
+                "max_selecciones": config["max_selecciones"],
+            }
+
+    selecciones_por_grupo: dict[int, list[int]] = {}
+    
+    toppings_procesados = []
+    precio_total = 0
+
+    for sel in toppings_seleccionados:
+        topping_id = sel.get("topping_id") or sel.get("id")
+        
+        if topping_id not in topping_detail_map:
+            raise BusinessLogicError(f"Topping {topping_id} no disponible para este producto")
+        
+        info = topping_detail_map[topping_id]
+        if not info["disponible"]:
+            raise BusinessLogicError(f"El topping '{info['nombre']}' no está disponible")
+
+        grupo_id = info["grupo_id"]
+        if grupo_id not in selecciones_por_grupo:
+            selecciones_por_grupo[grupo_id] = []
+        selecciones_por_grupo[grupo_id].append(topping_id)
+        
+        toppings_procesados.append({
+            "nombre": info["nombre"],
+            "precio": info["precio"],
+        })
+        precio_total += info["precio"]
+
+    # Validar restricciones de cantidad
+    for config in configs:
+        grupo_id = config["grupo_id"]
+        seleccionados = selecciones_por_grupo.get(grupo_id, [])
+        cantidad = len(seleccionados)
+
+        if cantidad < config["min_selecciones"]:
+            raise BusinessLogicError(
+                f"Debes seleccionar al menos {config['min_selecciones']} "
+                f"opción(es) de '{config['grupo_nombre']}'"
+            )
+        if cantidad > config["max_selecciones"]:
+            raise BusinessLogicError(
+                f"Solo puedes seleccionar hasta {config['max_selecciones']} "
+                f"opción(es) de '{config['grupo_nombre']}'"
+            )
+
     return toppings_procesados, precio_total

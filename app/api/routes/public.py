@@ -1,8 +1,9 @@
 from sqlalchemy.orm import joinedload
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
+from app.core.rate_limit import limiter
 
 from app.api.deps import get_session, PaginationParams
 from app.models.models import Negocio, Pedido, Producto, Categoria
@@ -18,7 +19,8 @@ router = APIRouter(prefix="/public", tags=["Públicos"])
 
 
 @router.get("/{slug}", response_model=NegocioRead)
-def get_negocio(slug: str, session: Session = Depends(get_session)):
+@limiter.limit("60/minute")
+def get_negocio(request: Request, slug: str, session: Session = Depends(get_session)):
     negocio = session.exec(select(Negocio).where(Negocio.slug == slug)).first()
 
     if not negocio:
@@ -27,7 +29,9 @@ def get_negocio(slug: str, session: Session = Depends(get_session)):
     return negocio
 
 @router.get("/{slug}/productos", response_model=list[ProductoRead])
+@limiter.limit("60/minute")
 def listar_productos_por_slug(
+    request: Request,
     slug: str,
     session: Session = Depends(get_session),
     pagination: PaginationParams = Depends(),
@@ -55,7 +59,9 @@ def listar_productos_por_slug(
     return result
 
 @router.get("/{slug}/categorias", response_model=list[CategoriaRead])
+@limiter.limit("60/minute")
 def listar_categorias_por_slug(
+    request: Request,
     slug: str,
     session: Session = Depends(get_session),
     pagination: PaginationParams = Depends(),
@@ -76,12 +82,14 @@ def listar_categorias_por_slug(
 
 
 @router.post("/{slug}/pedidos", response_model=PedidoRead)
-def crear_pedido(slug: str, data: PedidoCreate, session: Session = Depends(get_session)):
+@limiter.limit("10/minute")
+def crear_pedido(request: Request, slug: str, data: PedidoCreate, session: Session = Depends(get_session)):
     return crear_nuevo_pedido(session, slug, data)
 
 
 @router.get("/{slug}/pedidos/{codigo}", response_model=PedidoRead)
-def ver_pedido(slug: str, codigo: str, session: Session = Depends(get_session)):
+@limiter.limit("60/minute")
+def ver_pedido(request: Request, slug: str, codigo: str, session: Session = Depends(get_session)):
     negocio = session.exec(
         select(Negocio).where(Negocio.slug == slug, Negocio.activo)
     ).first()
@@ -98,7 +106,9 @@ def ver_pedido(slug: str, codigo: str, session: Session = Depends(get_session)):
     return pedido
 
 @router.get("/{slug}/productos/{producto_id}/toppings")
+@limiter.limit("60/minute")
 def obtener_toppings_producto_publico(
+    request: Request,
     slug: str,
     producto_id: int,
     session: Session = Depends(get_session),
@@ -122,7 +132,9 @@ class CouponValidationRequest(BaseModel):
     items: list[PedidoItemCreate]
 
 @router.post("/{slug}/validate-coupon")
+@limiter.limit("20/minute")
 def validar_cupon_endpoint(
+    request: Request,
     slug: str,
     data: CouponValidationRequest,
     session: Session = Depends(get_session)
@@ -131,30 +143,39 @@ def validar_cupon_endpoint(
     if not negocio:
         raise HTTPException(status_code=404, detail="Negocio no encontrado")
 
+    # Optimization: Prefetch all products and toppings to avoid N+1 queries
+    product_ids = {item.producto_id for item in data.items}
+    
+    topping_ids = set()
+    for item in data.items:
+        if item.toppings:
+            for t in item.toppings:
+                topping_ids.add(t.topping_id)
+    
+    # Fetch products
+    productos = session.exec(select(Producto).where(Producto.id.in_(product_ids))).all()
+    productos_map = {p.id: p for p in productos}
+    
+    # Fetch toppings
+    from app.models.models import Topping
+    toppings_map = {}
+    if topping_ids:
+        toppings = session.exec(select(Topping).where(Topping.id.in_(topping_ids))).all()
+        toppings_map = {t.id: t for t in toppings}
+
     # Recalcular total y preparar items para validación
     total_carrito = 0
     items_para_reglas = []
     
     for item in data.items:
-        producto = session.get(Producto, item.producto_id)
+        producto = productos_map.get(item.producto_id)
+        
         if producto and producto.negocio_id == negocio.id:
-            subtotal = producto.precio * item.cantidad
-            # Sumar toppings si fuera necesario (simplificado: ignoramos precio toppings para descuento base, o lo incluimos?)
-            # Para proteccion, lo ideal es calcularlo bien.
-            # Por ahora, usamos el precio base del producto como base para descuentos % 
-            
-            # Si el cupon aplica al total, deberiamos sumar toppings tambien.
-            # Vamos a sumar toppings basicos si estan en el modelo, pero item.toppings viene del request.
-            # Asumamos que el descuento es sobre el precio base de productos por simplicidad inicial o iterar.
-            # Mejor: Calcular bien.
+            # Calcular precio toppings
             precio_toppings = 0
             if item.toppings:
-                # Logica simplificada de costo toppings (sin validacion estricta aqui para velocidad de UI)
                 for t in item.toppings:
-                    # t es ToppingSeleccionado
-                    # Necesitamos buscar precio real
-                    from app.models.models import Topping
-                    top_db = session.get(Topping, t.topping_id)
+                    top_db = toppings_map.get(t.topping_id)
                     if top_db:
                         precio_toppings += top_db.precio_extra
             
@@ -178,7 +199,6 @@ def validar_cupon_endpoint(
             items=items_para_reglas
         )
         
-        # Serializar objeto Promocion para evitar errores de referencia circular/lazy loading
         # Serializar objeto Promocion para evitar errores de referencia circular/lazy loading
         if resultado.get("promocion"):
             # Convertimos manualmente para evitar líos con el ORM y lazy loading
