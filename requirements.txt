@@ -16,3 +16,4 @@ black
 cloudinary
 pydantic_settings
 requests
+slowapi

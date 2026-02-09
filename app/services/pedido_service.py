@@ -3,7 +3,10 @@ from sqlmodel import Session, select
 from app.models.models import Negocio, Pedido, PedidoItem, Producto
 from app.schemas.pedido import PedidoCreate
 from app.core.exceptions import EntityNotFoundError, BusinessLogicError, PermissionDeniedError
-from app.services.topping_service import validar_toppings_seleccionados
+from app.services.topping_service import (
+    obtener_toppings_para_varios_productos,
+    validar_toppings_con_config
+)
 
 
 def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedido:
@@ -24,34 +27,58 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
     if data.tipo_entrega not in negocio.tipos_entrega:
         raise BusinessLogicError("El tipo de entrega no está permitido por este negocio")
 
-    total = 0
     items_procesados = []
+    
+    # --- LOGICA DE PROCESAMIENTO DE ITEMS (OPTIMIZADA) ---
+    subtotal_productos = 0
 
+    # 1. Identificar todos los productos y toppings requeridos
+    producto_ids = {item.producto_id for item in data.items}
+    
+    # 2. Cargar todos los productos en una sola consulta
+    productos = session.exec(select(Producto).where(Producto.id.in_(producto_ids))).all()
+    productos_map = {p.id: p for p in productos}
+    
+    # 3. Validar existencia de todos los productos y pertenencia al negocio
+    for item in data.items:
+        if item.producto_id not in productos_map:
+            raise EntityNotFoundError(f"Producto {item.producto_id} no encontrado")
+        
+        producto = productos_map[item.producto_id]
+        if producto.negocio_id != negocio.id:
+            raise EntityNotFoundError(f"Producto {item.producto_id} no pertenece al negocio")
+            
+        if not producto.stock:
+            raise BusinessLogicError(f"El producto '{producto.nombre}' no tiene stock disponible")
+
+    # 4. Cargar configuraciones de toppings para todos los productos involucrados
+    configs_map = obtener_toppings_para_varios_productos(session, list(producto_ids))
+
+    # 5. Procesar items usando datos en memoria
     for item in data.items:
         if item.cantidad <= 0:
             raise BusinessLogicError("La cantidad de los productos debe ser mayor a 0")
 
-        producto = session.get(Producto, item.producto_id)
-        if not producto or producto.negocio_id != negocio.id:
-            raise EntityNotFoundError(f"Producto {item.producto_id} no encontrado")
-
-        if not producto.stock:
-            raise BusinessLogicError(f"El producto '{producto.nombre}' no tiene stock disponible")
-
+        producto = productos_map[item.producto_id]
+        
         # Validar y procesar toppings
         toppings_procesados = []
         precio_toppings = 0
         if item.toppings:
             toppings_dict = [t.model_dump() for t in item.toppings]
-            toppings_procesados, precio_toppings = validar_toppings_seleccionados(
-                session, producto.id, toppings_dict
+            # Obtener config para este producto (o lista vacía si no tiene)
+            item_configs = configs_map.get(producto.id, [])
+            
+            toppings_procesados, precio_toppings = validar_toppings_con_config(
+                item_configs, toppings_dict
             )
 
         # Calcular subtotal: (precio_producto + precio_toppings) * cantidad
         precio_unitario_total = producto.precio + precio_toppings
         subtotal = precio_unitario_total * item.cantidad
-        total += subtotal
+        subtotal_productos += subtotal
 
+        # Guardamos datos crudos para luego crear Items
         items_procesados.append({
             "producto_id": producto.id,
             "nombre_producto": producto.nombre,
@@ -59,14 +86,43 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
             "cantidad": item.cantidad,
             "subtotal": subtotal,
             "toppings_seleccionados": toppings_procesados,
+            "categoria_id": producto.categoria_id 
         })
+
+    # --- LÓGICA DE CUPONES ---
+    descuento_aplicado = 0
+    promocion_id = None
+    
+    if data.codigo_cupon:
+        from app.services.promocion_service import PromocionService
+        promo_service = PromocionService(session)
+        # Validamos el cupón (Lanza excepción si es inválido)
+        # Pasamos items procesados para reglas avanzadas si fuera necesario
+        items_para_reglas = [{"categoria_id": i["categoria_id"], "producto_id": i["producto_id"]} for i in items_procesados]
+        
+        resultado = promo_service.validar_cupon(
+            codigo=data.codigo_cupon, 
+            negocio_id=negocio.id, 
+            carrito_total=subtotal_productos,
+            items=items_para_reglas
+        )
+        
+        descuento_aplicado = int(resultado["descuento"])
+        promocion_id = resultado["promocion"].id
+        
+        # Incrementar uso del cupón
+        promo_service.aplicar_uso(promocion_id)
+
+    total_final = max(0, subtotal_productos - descuento_aplicado)
 
     codigo = uuid4().hex[:6].upper()
     pedido = Pedido(
         negocio_id=negocio.id,
         codigo=codigo,
         estado="pendiente",
-        total=total,
+        total=total_final,
+        descuento_aplicado=descuento_aplicado,
+        promocion_id=promocion_id,
         metodo_pago=data.metodo_pago,
         tipo_entrega=data.tipo_entrega,
         nombre_cliente=data.nombre_cliente,

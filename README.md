@@ -24,12 +24,14 @@ Este repositorio contiene el **backend API** construido con FastAPI, siguiendo p
 ### ✨ Características
 
 - 🏪 **Multi-tenant**: Cada usuario puede tener su propio negocio
-- 📦 **Catálogo Digital**: Productos con categorías, imágenes y stock
-- 🛒 **Sistema de Pedidos**: Estados, notificaciones, tracking por código
-- 💳 **Suscripciones**: Integración con MercadoPago para planes premium
-- 🔐 **Autenticación**: JWT con hashing Argon2 (más seguro que bcrypt)
-- 🖼️ **Multimedia**: Upload de imágenes a Cloudinary
-- 📱 **WhatsApp Ready**: Datos estructurados para integración con WhatsApp Business
+- 📦 **Catálogo Digital**: Productos con categorías, imágenes, stock y **toppings/extras** configurable
+- 🛒 **Sistema de Pedidos**: Estados, notificaciones, tracking por código y checkout optimizado
+- 🎟️ **Cupones de Descuento**: Reglas flexibles (2x1, porcentaje, monto fijo, envío gratis)
+- � **Métricas y Estadísticas**: Seguimiento de ventas, pedidos diarios y ticket promedio
+- �💳 **Suscripciones**: Integración con MercadoPago para planes premium
+- 🔐 **Autenticación y Seguridad**: JWT con Argon2 y **Rate Limiting** para prevención de abusos
+- 🖼️ **Multimedia**: Upload de imágenes a Cloudinary con soporte para banners
+- 📱 **PWA Ready**: Personalización de colores y estética que afectan directamente al PWA del negocio
 
 ---
 
@@ -45,6 +47,7 @@ app/
 │   ├── config.py     # Settings con pydantic-settings
 │   ├── database.py   # Engine SQLModel
 │   ├── security.py   # JWT + Argon2
+│   ├── rate_limit.py # Configuración de SlowAPI
 │   └── exceptions.py # Domain exceptions
 ├── models/           # Entidades de dominio
 ├── schemas/          # DTOs (Pydantic)
@@ -57,6 +60,8 @@ app/
 | Decisión | Razón |
 |----------|-------|
 | **Argon2** sobre bcrypt | Winner de Password Hashing Competition, resistente a GPU cracking |
+| **Bulk Queries** | Eliminación de N+1 queries en validación de pedidos y cupones mediante precarga de datos en memoria |
+| **Rate Limiting** | Implementación de `slowapi` para proteger endpoints críticos contra fuerza bruta y spam |
 | **Domain Exceptions** | Services desacoplados de HTTP, testeables unitariamente |
 | **Soft Delete** | `activo=False` en lugar de DELETE para auditoría |
 | **SQLModel** | Unifica SQLAlchemy + Pydantic, menos boilerplate |
@@ -69,6 +74,7 @@ app/
 |-----------|------------|
 | **Framework** | [FastAPI](https://fastapi.tiangolo.com/) |
 | **ORM** | [SQLModel](https://sqlmodel.tiangolo.com/) |
+| **Rate Limit** | [SlowAPI](https://github.com/laurentS/slowapi) |
 | **Base de Datos** | PostgreSQL / SQLite (dev) |
 | **Auth** | JWT (`python-jose`) + Argon2 (`argon2-cffi`) |
 | **Pagos** | [MercadoPago](https://www.mercadopago.com.ar/developers/) |
@@ -165,13 +171,20 @@ uvicorn app.main:app --reload
 | PUT | `/api/productos/{id}` | Actualizar producto |
 | DELETE | `/api/productos/{id}` | Desactivar producto |
 
-### Public API (Sin Auth)
+### Public API (Sin Auth - Rate Limited)
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | GET | `/api/public/{slug}` | Info del negocio |
 | GET | `/api/public/{slug}/productos` | Catálogo público |
 | POST | `/api/public/{slug}/pedidos` | Crear pedido |
 | GET | `/api/public/pedidos/{codigo}` | Tracking de pedido |
+| POST | `/api/public/{slug}/validate-coupon` | Validar cupón en tiempo real |
+
+### Estadísticas (Requiere Premium)
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/stats/dashboard` | Resumen de ventas hoy, pedidos y ticket promedio |
+| GET | `/api/stats/daily-sales` | Histórico de ventas de los últimos X días |
 
 > 📖 Documentación completa en `/docs` (Swagger UI)
 

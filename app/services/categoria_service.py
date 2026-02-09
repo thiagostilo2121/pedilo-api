@@ -39,10 +39,8 @@ def desactivar_categoria(session: Session, categoria_id: int, negocio_id: int):
     if categoria.nombre.lower() == "otros":
         raise BusinessLogicError("La categoría 'Otros' no puede ser desactivada")
 
-    # Obtener o crear la categoría "Otros" para reasignar productos
     categoria_otros = obtener_o_crear_categoria_por_nombre(session, negocio_id, "Otros")
 
-    # Reasignar productos activos
     productos = session.exec(
         select(Producto).where(
             Producto.categoria_id == categoria.id,
