@@ -17,3 +17,5 @@ cloudinary
 pydantic_settings
 requests
 slowapi
+pytest
+httpx
