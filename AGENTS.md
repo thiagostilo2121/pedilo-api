@@ -6,10 +6,18 @@ This document provides essential context for AI agents working on the **Pedilo B
 
 ## 📋 Project Overview
 
-**Pedilo** is a commission-free online ordering platform for small businesses (pizzerias, ice cream shops, kiosks). Each business gets its own public page with catalog, cart, and WhatsApp checkout integration.
+**Pedilo** is a commission-free online ordering platform for small businesses.
+
+### 🧠 Backend Philosophy
+AI Agents **MUST** strictly follow this philosophy:
+- **`models/`**: Your Database. Contains SQLModel entities and relationships.
+- **`schemas/`**: Your Templates. Pydantic models for request validation and response formatting.
+- **`services/`**: Your Logic. All business logic and DB operations live here. **Routes must remain logic-free.**
+- **`routes/`**: Your Endpoints. They only handle HTTP entry, call services, and return responses.
+- **`core/`**: Your Config. Centralized settings, security, and global exceptions.
+- **`utils/`**: Your Tools. Small, reusable utility functions (Cloudinary, helpers).
 
 - **Tech Stack**: FastAPI + SQLModel + PostgreSQL/SQLite
-- **Architecture**: Clean Architecture with domain-driven design principles
 - **Language**: Python 3.10+
 - **Auth**: JWT with Argon2 password hashing
 - **Integrations**: Cloudinary (images), MercadoPago (subscriptions)
@@ -44,6 +52,10 @@ app/
 ├── utils/                  # Utilities
 │   ├── cloudinary.py       # Image upload helper
 │   └── utils.py            # General helpers
+├── tests/                  # Automated tests (pytest)
+│   ├── conftest.py         # DB fixtures and TestClient
+│   ├── test_auth.py        # Authentication flows
+│   └── test_public.py      # Public endpoints
 └── main.py                 # FastAPI app initialization
 ```
 
@@ -54,6 +66,8 @@ app/
 | Pattern | Rationale |
 |---------|-----------|
 | **Domain Exceptions** | Services throw `PediloException` subclasses (not HTTP exceptions). Mapped to HTTP codes in `main.py` exception handlers. This keeps services testable and HTTP-agnostic. |
+| **Bulk Operations** | Avoid N+1 issues by pre-fetching data in bulk (e.g., `obtener_toppings_para_varios_productos`). Validation is performed in-memory when possible. |
+| **Rate Limiting** | Use `slowapi` to protect sensitive endpoints (login, register, order creation) from abuse and brute-force attacks. |
 | **Argon2 over bcrypt** | Argon2 is the Password Hashing Competition winner and more resistant to GPU cracking. |
 | **Soft Delete** | Entities use `activo=False` instead of hard deletion for audit trails. |
 | **SQLModel** | Combines SQLAlchemy ORM + Pydantic validation, reducing boilerplate. |
@@ -256,9 +270,18 @@ def eliminar_producto(session: Session, producto_id: int):
 
 ## 🧪 Testing & Validation
 
-### Current State
-- **Tests**: Not yet implemented (use `pytest` when added)
-- **Validation**: Pydantic v2 handles all schema validation automatically
+### Automated Tests
+- **Framework**: `pytest`
+- **Setup**: `tests/conftest.py` configures an in-memory SQLite database and a `client` (FastAPI `TestClient`) with dependency overrides.
+- **Rules**:
+    - Tests must be independent.
+    - Use `db_session` fixture for direct DB access.
+    - Use `client` fixture for API endpoint testing.
+    - Prefer `session.exec(select(...))` over legacy SQLAlchemy query syntax.
+
+### Validation
+- Pydantic v2 handles all schema validation automatically.
+- Complex multi-field validation should be done with `@model_validator`.
 
 ### Manual Testing
 1. Use Swagger UI at `http://localhost:8000/docs`
@@ -300,6 +323,15 @@ uvicorn app.main:app --reload
 
 ### Issue: JWT token expired
 **Solution**: Token lifetime is set in `app/core/security.py`. Re-login to get new token.
+
+### Issue: Rate Limiter "Request object missing"
+**Solution**: Any endpoint decorated with `@limiter.limit(...)` **must** include `request: Request` as a function parameter.
+```python
+@router.post("/login")
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginSchema, ...):
+    ...
+```
 
 ---
 
@@ -391,11 +423,13 @@ uvicorn app.main:app --reload
 
 1. **Always check existing patterns**: Before creating new code, examine similar existing files
 2. **Respect the architecture**: Keep services HTTP-agnostic (no `Request` or `Response` objects in services)
-3. **Use domain exceptions**: Never raise `HTTPException` from services
-4. **Check dependencies**: Import from correct modules (`app.models`, `app.schemas`, etc.)
-5. **Follow soft delete**: Never hard-delete records unless explicitly required
-6. **Test before committing**: Use Swagger UI + `make check`
-7. **Windows paths**: Use raw strings or forward slashes for cross-platform compatibility
+3. **All limited endpoints need Request**: If you add `@limiter.limit`, the function signature **must** have `request: Request`.
+4. **Use domain exceptions**: Never raise `HTTPException` from services
+5. **Check dependencies**: Import from correct modules (`app.models`, `app.schemas`, etc.)
+6. **Follow soft delete**: Never hard-delete records unless explicitly required
+7. **SQLModel Syntax**: Always use `session.exec(select(Model).where(...))` for consistency.
+8. **Test before committing**: Run `pytest` and `make check`.
+9. **Windows paths**: Use raw strings or forward slashes for cross-platform compatibility
 
 ---
 
@@ -409,6 +443,6 @@ If you encounter unclear patterns or need clarification:
 
 ---
 
-**Last Updated**: 2026-02-05  
-**Project Version**: 0.1.0  
+**Last Updated**: 2026-02-10  
+**Project Version**: 0.4.0  
 **Maintained by**: Thiago Valentín Stilo Limarino
