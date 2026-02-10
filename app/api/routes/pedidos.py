@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
-from sqlmodel import Session, select
+from sqlmodel import Session, select, desc
 
 from app.api.deps import get_current_user, get_negocio_del_usuario, get_session, PaginationParams
 from app.models.models import Pedido, PedidoEstado
@@ -20,6 +20,7 @@ def listar_pedidos(
         select(Pedido)
         .where(Pedido.negocio_id == negocio.id)
         .options(selectinload(Pedido.items))
+        .order_by(desc(Pedido.creado_en))
         .offset(pagination.skip)
         .limit(pagination.limit)
     ).all()

@@ -87,6 +87,7 @@ def cancelar_suscripcion():
     """
     raise HTTPException(
         status_code=410,
+        
         detail="Gestiona tu suscripción desde Mercado Pago."
     )
 
