@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 class ToppingSeleccionado(BaseModel):
     topping_id: int | None = None
-    nombre: str
+    nombre: str | None = None
     precio: int = 0
 
 
