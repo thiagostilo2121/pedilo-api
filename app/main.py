@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Pedilo API",
     description="Backend del sistema Pedilo - pedidos online sin comisiones",
-    version="0.3.1",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
