@@ -443,6 +443,6 @@ If you encounter unclear patterns or need clarification:
 
 ---
 
-**Last Updated**: 2026-02-10  
-**Project Version**: 0.4.0  
+**Last Updated**: 2026-02-11  
+**Project Version**: 0.5.0  
 **Maintained by**: Thiago Valentín Stilo Limarino

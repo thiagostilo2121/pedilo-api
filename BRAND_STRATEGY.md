@@ -1,4 +1,4 @@
-# 🎯 Pedilo Brand Strategy (v0.4.0)
+# 🎯 Pedilo Brand Strategy (v0.5.0)
 
 Este documento define el **ADN** de la marca Pedilo. Todas las comunicaciones, desarrollos y ventas deben alinearse con estos principios.
 
