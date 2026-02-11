@@ -1,4 +1,4 @@
-# 📘 Pedilo Sales Playbook (v0.4.0)
+# 📘 Pedilo Sales Playbook (v0.5.0)
 
 Este documento es tu guía maestra para convertir leads en clientes usando WhatsApp y las herramientas que ya tienes (Demo, PDF, Landing).
 
