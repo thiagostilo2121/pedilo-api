@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.core.rate_limit import limiter
 
 from app.api.deps import get_session, PaginationParams
-from app.models.models import Negocio, Pedido, Producto, Categoria
+from app.models.models import Negocio, Pedido, Producto, Categoria, TipoNegocio
 from app.schemas.pedido import PedidoCreate, PedidoRead, PedidoItemCreate
 from app.schemas.producto import ProductoRead
 from app.schemas.negocio import NegocioRead, NegocioPublicDetail
@@ -209,14 +209,24 @@ def validar_cupon_endpoint(
                     top_db = toppings_map.get(t.topping_id)
                     if top_db:
                         precio_toppings += top_db.precio_extra
-            
-            total_carrito += (producto.precio + precio_toppings) * item.cantidad
+
+            # Calcular precio base: considerar mayorista si aplica
+            precio_base = producto.precio
+            if (
+                negocio.tipo_negocio == TipoNegocio.DISTRIBUIDORA
+                and producto.precio_mayorista is not None
+                and producto.cantidad_mayorista is not None
+                and item.cantidad >= producto.cantidad_mayorista
+            ):
+                precio_base = producto.precio_mayorista
+
+            total_carrito += (precio_base + precio_toppings) * item.cantidad
             
             items_para_reglas.append({
                 "producto_id": producto.id,
                 "categoria_id": producto.categoria_id,
                 "cantidad": item.cantidad,
-                "precio_unitario": producto.precio
+                "precio_unitario": precio_base + precio_toppings
             })
 
     from app.services.promocion_service import PromocionService

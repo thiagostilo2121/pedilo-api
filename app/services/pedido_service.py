@@ -115,7 +115,14 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
         promo_service = PromocionService(session)
         # Validamos el cupón (Lanza excepción si es inválido)
         # Pasamos items procesados para reglas avanzadas si fuera necesario
-        items_para_reglas = [{"categoria_id": i["categoria_id"], "producto_id": i["producto_id"]} for i in items_procesados]
+        items_para_reglas = [
+            {
+                "categoria_id": i["categoria_id"], 
+                "producto_id": i["producto_id"],
+                "cantidad": i["cantidad"],
+                "precio_unitario": i["precio_unitario"]
+            } for i in items_procesados
+        ]
         
         resultado = promo_service.validar_cupon(
             codigo=data.codigo_cupon, 
