@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import SQLModel
+from app.models.models import TipoNegocio
 
 
 class NegocioBase(SQLModel):
@@ -8,6 +9,7 @@ class NegocioBase(SQLModel):
     slug: str = Field(min_length=1)
     logo_url: str | None = None
     banner_url: str | None = None
+    anuncio_web: str | None = None  # Smart Banner
     color_primario: str | None = None
     color_secundario: str | None = None
     metodos_pago: list[str] = []
@@ -17,6 +19,8 @@ class NegocioBase(SQLModel):
     direccion: str | None = None
     horario: str | None = None
     acepta_pedidos: bool = True
+    pedido_minimo: int = 0
+    tipo_negocio: TipoNegocio = TipoNegocio.MINORISTA
 
     model_config = {
         "json_schema_extra": {
@@ -26,7 +30,8 @@ class NegocioBase(SQLModel):
                 "slug": "mi-tienda",
                 "metodos_pago": ["efectivo", "transferencia"],
                 "tipos_entrega": ["delivery", "takeaway"],
-                "telefono": "12345678"
+                "telefono": "12345678",
+                "anuncio_web": "¡Envios gratis este fin de semana!"
             }
         }
     }
@@ -54,7 +59,10 @@ class NegocioUpdate(BaseModel):
     direccion: str | None = None
     horario: str | None = None
     acepta_pedidos: bool | None = None
+    pedido_minimo: int | None = None
+    tipo_negocio: TipoNegocio | None = None
     banner_url: str | None = None
+    anuncio_web: str | None = None
 
 
 class NegocioCreate(NegocioBase):
@@ -64,3 +72,7 @@ class NegocioCreate(NegocioBase):
 class NegocioRead(NegocioBase):
     id: int
     activo: bool
+
+class NegocioPublicDetail(NegocioRead):
+    insignias: list[str] = []
+

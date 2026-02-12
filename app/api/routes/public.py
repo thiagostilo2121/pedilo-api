@@ -1,4 +1,5 @@
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -9,16 +10,17 @@ from app.api.deps import get_session, PaginationParams
 from app.models.models import Negocio, Pedido, Producto, Categoria
 from app.schemas.pedido import PedidoCreate, PedidoRead, PedidoItemCreate
 from app.schemas.producto import ProductoRead
-from app.schemas.negocio import NegocioRead
+from app.schemas.negocio import NegocioRead, NegocioPublicDetail
 from app.schemas.categoria import CategoriaRead
 from app.schemas.promocion import PromocionRead
 from app.services.pedido_service import crear_nuevo_pedido
 from app.services import topping_service
+from app.models.models import PedidoEstado
 
 router = APIRouter(prefix="/public", tags=["Públicos"])
 
 
-@router.get("/{slug}", response_model=NegocioRead)
+@router.get("/{slug}", response_model=NegocioPublicDetail)
 @limiter.limit("60/minute")
 def get_negocio(request: Request, slug: str, session: Session = Depends(get_session)):
     negocio = session.exec(select(Negocio).where(Negocio.slug == slug)).first()
@@ -26,7 +28,36 @@ def get_negocio(request: Request, slug: str, session: Session = Depends(get_sess
     if not negocio:
         raise HTTPException(status_code=404, detail="Negocio no encontrado")
 
-    return negocio
+    # Calculo de insignias (On-the-fly)
+    insignias = []
+    
+    # Badge: TOP_SELLER_100
+    total_pedidos = session.exec(
+        select(func.count(Pedido.id)).where(Pedido.negocio_id == negocio.id)
+    ).one()
+    
+    if total_pedidos > 100:
+        insignias.append("TOP_SELLER_100")
+
+    # Badge: VERIFICADO_50
+    pedidos_entregados = session.exec(
+        select(func.count(Pedido.id)).where(
+            Pedido.negocio_id == negocio.id,
+            Pedido.estado == PedidoEstado.FINALIZADO
+        )
+    ).one()
+
+    if pedidos_entregados > 50:
+        insignias.append("VERIFICADO_50")
+
+    # Badge: ENTREGA_FLASH (Opcional - placeholder logic)
+    # Aquí podríamos calcular el promedio de tiempo si tuviéramos esa data
+    # Por ahora, dejámoslo pendiente o con una lógica simple si aplica
+    
+    negocio_dict = negocio.model_dump()
+    negocio_dict["insignias"] = insignias
+    
+    return NegocioPublicDetail(**negocio_dict)
 
 @router.get("/{slug}/productos", response_model=list[ProductoRead])
 @limiter.limit("60/minute")

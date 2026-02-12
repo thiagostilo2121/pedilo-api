@@ -8,6 +8,10 @@ class ProductoBase(SQLModel):
     nombre: str
     descripcion: str | None = None
     precio: int = Field(gt=0)
+    unidad: str = "unidad"
+    precio_mayorista: int | None = None
+    cantidad_mayorista: int | None = None
+    cantidad_minima: int = 1
     imagen_url: str | None = None
     categoria: str | None = None
     stock: bool | None = True
@@ -36,6 +40,10 @@ class ProductoUpdate(BaseModel):
     nombre: str | None = None
     descripcion: str | None = None
     precio: int | None = None
+    unidad: str | None = None
+    precio_mayorista: int | None = None
+    cantidad_mayorista: int | None = None
+    cantidad_minima: int | None = None
     imagen_url: str | None = None
     categoria: str | None = None
     stock: bool | None = None
@@ -64,6 +72,10 @@ class ProductoRead(ProductoBase):
                 "nombre": values.nombre,
                 "descripcion": values.descripcion,
                 "precio": values.precio,
+                "unidad": values.unidad,
+                "precio_mayorista": values.precio_mayorista,
+                "cantidad_mayorista": values.cantidad_mayorista,
+                "cantidad_minima": values.cantidad_minima,
                 "imagen_url": values.imagen_url,
                 "categoria": values.categoria_nombre,
                 "stock": values.stock,
