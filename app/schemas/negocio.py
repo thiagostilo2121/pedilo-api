@@ -9,6 +9,7 @@ class NegocioBase(SQLModel):
     slug: str = Field(min_length=1)
     logo_url: str | None = None
     banner_url: str | None = None
+    anuncio_web: str | None = None  # Smart Banner
     color_primario: str | None = None
     color_secundario: str | None = None
     metodos_pago: list[str] = []
@@ -29,7 +30,8 @@ class NegocioBase(SQLModel):
                 "slug": "mi-tienda",
                 "metodos_pago": ["efectivo", "transferencia"],
                 "tipos_entrega": ["delivery", "takeaway"],
-                "telefono": "12345678"
+                "telefono": "12345678",
+                "anuncio_web": "¡Envios gratis este fin de semana!"
             }
         }
     }
@@ -60,6 +62,7 @@ class NegocioUpdate(BaseModel):
     pedido_minimo: int | None = None
     tipo_negocio: TipoNegocio | None = None
     banner_url: str | None = None
+    anuncio_web: str | None = None
 
 
 class NegocioCreate(NegocioBase):
@@ -69,3 +72,7 @@ class NegocioCreate(NegocioBase):
 class NegocioRead(NegocioBase):
     id: int
     activo: bool
+
+class NegocioPublicDetail(NegocioRead):
+    insignias: list[str] = []
+

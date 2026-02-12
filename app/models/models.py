@@ -63,6 +63,7 @@ class Negocio(SQLModel, table=True):
     acepta_pedidos: bool | None = True
     pedido_minimo: int = 0
     tipo_negocio: str = Field(default=TipoNegocio.MINORISTA)
+    anuncio_web: str | None = None  # Smart Banner
     activo: bool = True
     creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
