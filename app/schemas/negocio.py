@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import SQLModel
+from app.models.models import TipoNegocio
 
 
 class NegocioBase(SQLModel):
@@ -17,6 +18,8 @@ class NegocioBase(SQLModel):
     direccion: str | None = None
     horario: str | None = None
     acepta_pedidos: bool = True
+    pedido_minimo: int = 0
+    tipo_negocio: TipoNegocio = TipoNegocio.MINORISTA
 
     model_config = {
         "json_schema_extra": {
@@ -54,6 +57,8 @@ class NegocioUpdate(BaseModel):
     direccion: str | None = None
     horario: str | None = None
     acepta_pedidos: bool | None = None
+    pedido_minimo: int | None = None
+    tipo_negocio: TipoNegocio | None = None
     banner_url: str | None = None
 
 

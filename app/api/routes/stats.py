@@ -125,3 +125,47 @@ def get_top_products(
         }
         for row in results
     ]
+
+
+@router.get("/clients")
+def get_top_clients(
+    limit: int = 10,
+    session: Session = Depends(get_session),
+    current_user_negocio: Negocio = Depends(get_current_user_negocio),
+):
+    """
+    Ranking de clientes por total gastado.
+    Útil para distribuidoras que necesitan identificar sus mejores clientes.
+    """
+    negocio = current_user_negocio
+
+    results = session.exec(
+        select(
+            Pedido.nombre_cliente,
+            func.count(Pedido.id).label("cantidad_pedidos"),
+            func.sum(Pedido.total).label("total_gastado"),
+            func.max(Pedido.creado_en).label("ultimo_pedido"),
+        )
+        .where(
+            Pedido.negocio_id == negocio.id,
+            Pedido.nombre_cliente.isnot(None),
+            col(Pedido.estado).in_(["aceptado", "en_progreso", "finalizado"]),
+        )
+        .group_by(Pedido.nombre_cliente)
+        .order_by(desc("total_gastado"))
+        .limit(limit)
+    ).all()
+
+    return [
+        {
+            "nombre": row.nombre_cliente,
+            "cantidad_pedidos": row.cantidad_pedidos,
+            "total_gastado": row.total_gastado,
+            "ultimo_pedido": (
+                row.ultimo_pedido.isoformat()
+                if hasattr(row.ultimo_pedido, "isoformat")
+                else str(row.ultimo_pedido)
+            ),
+        }
+        for row in results
+    ]

@@ -18,6 +18,10 @@ class SubscriptionStatus(str, Enum):
     EXPIRED = "expired"
     REJECTED = "rejected"
 
+class TipoNegocio(str, Enum):
+    MINORISTA = "minorista"
+    DISTRIBUIDORA = "distribuidora"
+
 
 class Usuario(SQLModel, table=True):
     __tablename__ = "usuarios"
@@ -57,6 +61,8 @@ class Negocio(SQLModel, table=True):
     direccion: str | None = None
     horario: str | None = None
     acepta_pedidos: bool | None = True
+    pedido_minimo: int = 0
+    tipo_negocio: str = Field(default=TipoNegocio.MINORISTA)
     activo: bool = True
     creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -90,6 +96,10 @@ class Producto(SQLModel, table=True):
     nombre: str
     descripcion: str | None = None
     precio: int
+    unidad: str = "unidad"
+    precio_mayorista: int | None = None
+    cantidad_mayorista: int | None = None
+    cantidad_minima: int = 1
     imagen_url: str | None = None
     categoria_id: int | None = Field(default=None, foreign_key="categorias.id")
     stock: bool | None = True
@@ -118,6 +128,8 @@ class Pedido(SQLModel, table=True):
     tipo_entrega: str | None = None
     nombre_cliente: str | None = None
     telefono_cliente: str | None = None
+    direccion_entrega: str | None = None
+    notas: str | None = None
     creado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     promocion_id: int | None = Field(default=None, foreign_key="promociones.id")

@@ -1,6 +1,6 @@
 from uuid import uuid4
 from sqlmodel import Session, select
-from app.models.models import Negocio, Pedido, PedidoItem, Producto
+from app.models.models import Negocio, Pedido, PedidoItem, Producto, TipoNegocio
 from app.schemas.pedido import PedidoCreate
 from app.core.exceptions import EntityNotFoundError, BusinessLogicError, PermissionDeniedError
 from app.services.topping_service import (
@@ -55,11 +55,18 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
     configs_map = obtener_toppings_para_varios_productos(session, list(producto_ids))
 
     # 5. Procesar items usando datos en memoria
+    es_distribuidora = negocio.tipo_negocio == TipoNegocio.DISTRIBUIDORA
     for item in data.items:
         if item.cantidad <= 0:
             raise BusinessLogicError("La cantidad de los productos debe ser mayor a 0")
 
         producto = productos_map[item.producto_id]
+
+        # Validar cantidad mínima por producto (solo distribuidoras)
+        if es_distribuidora and item.cantidad < producto.cantidad_minima:
+            raise BusinessLogicError(
+                f"La cantidad mínima para '{producto.nombre}' es {producto.cantidad_minima} {producto.unidad}(s)"
+            )
         
         # Validar y procesar toppings
         toppings_procesados = []
@@ -73,8 +80,18 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
                 item_configs, toppings_dict
             )
 
-        # Calcular subtotal: (precio_producto + precio_toppings) * cantidad
-        precio_unitario_total = producto.precio + precio_toppings
+        # Calcular precio: usar precio mayorista si aplica (solo distribuidoras)
+        precio_base = producto.precio
+        if (
+            es_distribuidora
+            and producto.precio_mayorista is not None
+            and producto.cantidad_mayorista is not None
+            and item.cantidad >= producto.cantidad_mayorista
+        ):
+            precio_base = producto.precio_mayorista
+
+        # Calcular subtotal: (precio_base + precio_toppings) * cantidad
+        precio_unitario_total = precio_base + precio_toppings
         subtotal = precio_unitario_total * item.cantidad
         subtotal_productos += subtotal
 
@@ -115,6 +132,16 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
 
     total_final = max(0, subtotal_productos - descuento_aplicado)
 
+    # Validar pedido mínimo (solo distribuidoras)
+    if (
+        negocio.tipo_negocio == TipoNegocio.DISTRIBUIDORA
+        and negocio.pedido_minimo > 0
+        and total_final < negocio.pedido_minimo
+    ):
+        raise BusinessLogicError(
+            f"El pedido mínimo para este negocio es ${negocio.pedido_minimo}"
+        )
+
     codigo = uuid4().hex[:6].upper()
     pedido = Pedido(
         negocio_id=negocio.id,
@@ -127,6 +154,8 @@ def crear_nuevo_pedido(session: Session, slug: str, data: PedidoCreate) -> Pedid
         tipo_entrega=data.tipo_entrega,
         nombre_cliente=data.nombre_cliente,
         telefono_cliente=data.telefono_cliente,
+        direccion_entrega=data.direccion_entrega,
+        notas=data.notas,
     )
 
     session.add(pedido)

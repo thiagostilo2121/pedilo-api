@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import selectinload
-from sqlmodel import Session, select, desc
+from sqlmodel import Session, select, desc, col
 
 from app.api.deps import get_current_user, get_negocio_del_usuario, get_session, PaginationParams
 from app.models.models import Pedido, PedidoEstado
@@ -11,19 +14,40 @@ router = APIRouter(prefix="/api/pedidos", tags=["Pedidos"])
 
 @router.get("/", response_model=list[PedidoRead])
 def listar_pedidos(
+    estado: PedidoEstado | None = None,
+    buscar: str | None = Query(None, description="Buscar por código o nombre de cliente"),
+    fecha_desde: datetime | None = Query(None, description="Filtrar desde fecha (ISO 8601)"),
+    fecha_hasta: datetime | None = Query(None, description="Filtrar hasta fecha (ISO 8601)"),
     session: Session = Depends(get_session),
     usuario=Depends(get_current_user),
     pagination: PaginationParams = Depends(),
 ):
     negocio = get_negocio_del_usuario(session, usuario)
-    pedidos = session.exec(
+    query = (
         select(Pedido)
         .where(Pedido.negocio_id == negocio.id)
         .options(selectinload(Pedido.items))
-        .order_by(desc(Pedido.creado_en))
-        .offset(pagination.skip)
-        .limit(pagination.limit)
-    ).all()
+    )
+
+    if estado is not None:
+        query = query.where(Pedido.estado == estado)
+
+    if buscar:
+        buscar_like = f"%{buscar}%"
+        query = query.where(
+            (col(Pedido.codigo).ilike(buscar_like))
+            | (col(Pedido.nombre_cliente).ilike(buscar_like))
+        )
+
+    if fecha_desde is not None:
+        query = query.where(Pedido.creado_en >= fecha_desde)
+
+    if fecha_hasta is not None:
+        query = query.where(Pedido.creado_en <= fecha_hasta)
+
+    query = query.order_by(desc(Pedido.creado_en)).offset(pagination.skip).limit(pagination.limit)
+
+    pedidos = session.exec(query).all()
     return pedidos
 
 
