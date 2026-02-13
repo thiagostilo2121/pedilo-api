@@ -6,9 +6,25 @@ from app.api.deps import get_current_user, get_negocio_del_usuario, get_session,
 from app.models.models import Producto
 from app.schemas.producto import ProductoCreate, ProductoRead, ProductoUpdate
 from app.schemas.topping import ProductoGrupoToppingConfig
-from app.services import producto_service, topping_service
+from app.services import producto_service, topping_service, import_service
+from fastapi import UploadFile, File
 
 router = APIRouter(prefix="/api/productos", tags=["Productos"])
+
+@router.post("/import", response_model=dict)
+def importar_productos(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    usuario=Depends(get_current_user),
+):
+    """
+    Importa productos desde un archivo Excel (.xlsx).
+    El archivo debe tener columnas como: 'nombre', 'precio', 'sku', 'codigo_barras', 'barcode'.
+    """
+    negocio = get_negocio_del_usuario(session, usuario)
+    importer = import_service.ImportService()
+    resultado = importer.process_excel_file(file.file, negocio.id, session)
+    return resultado
 
 
 @router.post("/", response_model=ProductoRead)

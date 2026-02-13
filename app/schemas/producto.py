@@ -16,6 +16,8 @@ class ProductoBase(SQLModel):
     categoria: str | None = None
     stock: bool | None = True
     destacado: bool | None = False
+    sku: str | None = None
+    codigo_barras: str | None = None
 
     model_config = {
         "json_schema_extra": {
@@ -48,6 +50,8 @@ class ProductoUpdate(BaseModel):
     categoria: str | None = None
     stock: bool | None = None
     destacado: bool | None = None
+    sku: str | None = None
+    codigo_barras: str | None = None
 
     @classmethod
     def from_orm(cls, producto: Producto):
@@ -80,6 +84,8 @@ class ProductoRead(ProductoBase):
                 "categoria": values.categoria_nombre,
                 "stock": values.stock,
                 "destacado": values.destacado,
+                "sku": values.sku,
+                "codigo_barras": values.codigo_barras
             }
             return handler(data)
         return handler(values)
