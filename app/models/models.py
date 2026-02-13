@@ -98,6 +98,8 @@ class Producto(SQLModel, table=True):
     descripcion: str | None = None
     precio: int
     unidad: str = "unidad"
+    sku: str | None = Field(default=None, index=True)
+    codigo_barras: str | None = Field(default=None, index=True)
     precio_mayorista: int | None = None
     cantidad_mayorista: int | None = None
     cantidad_minima: int = 1

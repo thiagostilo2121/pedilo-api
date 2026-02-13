@@ -19,3 +19,4 @@ requests
 slowapi
 pytest
 httpx
+openpyxl
