@@ -4,7 +4,7 @@ from sqlmodel import Session, select, func, desc, col
 from sqlalchemy import cast, Date, text
 
 from app.api.deps import get_session, get_current_user_negocio
-from app.models.models import Negocio, Pedido, PedidoItem, Producto, Usuario
+from app.models.models import Negocio, Pedido, PedidoItem, Producto, Usuario, Categoria
 
 router = APIRouter(prefix="/api/stats", tags=["Estadísticas"])
 
@@ -107,12 +107,15 @@ def get_top_products(
         select(
             PedidoItem.nombre_producto,
             func.sum(PedidoItem.cantidad).label("total_vendido"),
-            func.sum(PedidoItem.subtotal).label("ingresos_generados")
+            func.sum(PedidoItem.subtotal).label("ingresos_generados"),
+            Categoria.nombre.label("categoria_nombre")
         )
         .join(Pedido)
+        .outerjoin(Producto, PedidoItem.producto_id == Producto.id)
+        .outerjoin(Categoria, Producto.categoria_id == Categoria.id)
         .where(Pedido.negocio_id == negocio.id)
         .where(col(Pedido.estado).in_(["aceptado", "en_progreso", "finalizado"]))
-        .group_by(PedidoItem.nombre_producto)
+        .group_by(PedidoItem.nombre_producto, Categoria.nombre)
         .order_by(desc("total_vendido"))
         .limit(limit)
     ).all()
@@ -121,7 +124,8 @@ def get_top_products(
         {
             "nombre": row.nombre_producto,
             "cantidad": row.total_vendido,
-            "ingresos": row.ingresos_generados
+            "ingresos": row.ingresos_generados,
+            "categoria": row.categoria_nombre or "Sin categoría"
         }
         for row in results
     ]
@@ -169,3 +173,57 @@ def get_top_clients(
         }
         for row in results
     ]
+
+
+@router.get("/hourly-sales")
+def get_hourly_sales(
+    days: int = Query(7, ge=1, le=30),
+    session: Session = Depends(get_session),
+    current_user_negocio: Negocio = Depends(get_current_user_negocio)
+):
+    """
+    Obtiene la distribución de pedidos por hora para el rango de días especificado.
+    Retorna una lista de 24 objetos, uno por cada hora del día.
+    """
+    negocio = current_user_negocio
+    now = datetime.now(timezone.utc)
+    start_date = now - timedelta(days=days)
+
+    is_sqlite = "sqlite" in str(session.bind.url)
+    
+    # Si bien el requerimiento pide considerar la zona horaria del negocio,
+    # actualmente no tenemos un campo 'timezone' en el modelo Negocio.
+    # Por defecto usaremos la hora UTC almacenada. 
+    # Para Postgres se podría aplicar 'AT TIME ZONE' si tuviéramos el string.
+    if is_sqlite:
+        hour_func = func.strftime("%H", Pedido.creado_en)
+    else:
+        hour_func = func.extract("hour", Pedido.creado_en)
+
+    results = session.exec(
+        select(
+            hour_func.label("hora"),
+            func.count(Pedido.id).label("volumen")
+        )
+        .where(Pedido.negocio_id == negocio.id)
+        .where(Pedido.creado_en >= start_date)
+        .where(col(Pedido.estado).in_(["aceptado", "en_progreso", "finalizado"]))
+        .group_by(text("hora"))
+        .order_by(text("hora"))
+    ).all()
+
+    # Preparamos el diccionario con las 24 horas inicializadas en 0
+    # para asegurar que la respuesta siempre tenga el rango completo.
+    hourly_dict = {f"{h:02d}h": 0 for h in range(24)}
+    
+    for row in results:
+        try:
+            # En SQLite strftime devuelve un string, en Postgres extract devuelve un float/int
+            h_int = int(float(row.hora))
+            h_str = f"{h_int:02d}h"
+            if h_str in hourly_dict:
+                hourly_dict[h_str] = row.volumen
+        except (ValueError, TypeError):
+            continue
+
+    return [{"hour": h, "volume": v} for h, v in hourly_dict.items()]
